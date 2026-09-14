@@ -1,0 +1,47 @@
+.room-storage-note { padding: 14px 18px; border: 1px solid #55482d; background: #252219; border-radius: 14px; color: #d9c78c; font-size: 12px; line-height: 1.8; margin-block: 20px; }
+.room-storage-note.cloud { background: #1e2822; border-color: #354e3f; color: #b6d5bf; }
+.room-entry-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.room-entry-grid h2 { font-size: 21px; }
+.room-form { display: grid; gap: 18px; margin-top: 24px; }
+.room-form label, .room-share-link label { display: grid; gap: 8px; color: var(--color-text-secondary); font-size: 12px; }
+.room-code-input { letter-spacing: 7px; font-size: 24px; font-weight: 700; }
+.room-share-card { display: flex; gap: 28px; align-items: center; padding: 24px; border: 1px solid var(--color-border); border-radius: var(--radius-card); background: var(--color-card); margin-bottom: 24px; }
+.room-share-card > div:first-child { display: grid; gap: 10px; }
+.room-share-card > div > span { font-size: 12px; color: var(--color-text-secondary); }
+.room-share-card strong { font-size: 32px; color: var(--color-primary); letter-spacing: 5px; }
+.room-share-link { display: flex; flex: 1; gap: 12px; align-items: end; min-width: 0; }
+.room-share-link label { flex: 1; min-width: 0; }
+.room-share-link input { width: 100%; font-size: 12px; }
+.room-new-options { padding: 20px 24px; border: 1px solid var(--color-border); border-radius: 18px; margin-block: 24px; background: var(--color-card); }
+.room-new-options summary { color: var(--color-primary); cursor: pointer; font-size: 14px; }
+.room-new-options > div { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+.room-admin-state { display: flex; gap: 16px; align-items: center; color: var(--color-text-secondary); font-size: 11px; margin-block: 18px; }
+.room-editor-fieldset { padding: 0; margin: 0; border: 0; min-width: 0; }
+.money-display { display: inline-flex; flex-direction: column; align-items: inherit; gap: 4px; }
+.korean-money { display: block; font-size: 10px; font-weight: 400; line-height: 1.6; letter-spacing: 0; color: var(--color-text-secondary); }
+.money-field > .korean-money { padding-top: 5px; text-align: right; }
+.result-payout .korean-money { color: #c9bc8b; margin-top: 8px; }
+.party-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.party-filters button { color: var(--color-text-secondary); background: var(--color-card-secondary); border: 1px solid var(--color-border); padding: 9px 11px; border-radius: 12px; font-size: 11px; }
+.party-filters button[aria-pressed='true'] { color: var(--color-primary); border-color: #786532; background: #2a261b; }
+.party-filters small { font-size: 9px; margin-left: 4px; }
+.roster-row[hidden] { display: none; }
+.add-party { width: 115px; flex-shrink: 0; }
+.header-rooms { color: var(--color-text-secondary); font-size: 13px; white-space: nowrap; padding-block: 12px; }
+.header-rooms:hover { color: var(--color-primary); }
+@media (max-width: 800px) {
+  .room-entry-grid { grid-template-columns: 1fr; }
+  .room-share-card { flex-direction: column; align-items: stretch; }
+  .header-right { gap: 12px; }
+}
+@media (max-width: 580px) {
+  .header-inner { height: auto; min-height: 88px; padding-block: 14px; flex-wrap: wrap; }
+  .header-right { flex-wrap: wrap; }
+  .member-form { flex-wrap: wrap; }
+  .member-form > input { flex: 1 1 100%; }
+  .add-party { width: auto; flex: 1; }
+  .room-share-link { flex-direction: column; align-items: stretch; }
+  .room-new-options .button { width: 100%; font-size: 12px; }
+  .header-rooms { font-size: 11px; }
+  .room-share-card { padding: 20px; }
+}

@@ -1,0 +1,4 @@
+# The endpoint intentionally accepts public room reads without a user account.
+# Its handler enforces per-room admin sessions for every write.
+[functions.room-api]
+verify_jwt = false
