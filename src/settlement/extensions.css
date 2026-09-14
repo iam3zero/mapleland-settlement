@@ -7,7 +7,7 @@
 .editor-toolbar > div, .dialog-actions { display: flex; gap: 10px; }
 .roster-list { display: grid; gap: 10px; margin-block: 18px; }
 .roster-row { display: grid; grid-template-columns: 22px minmax(80px, 1fr) 126px 44px; align-items: center; gap: 8px; }
-.roster-index { color: var(--color-text-secondary); font-size: 11px; }
+.roster-index { color: var(--color-text-secondary); font-size: 12px; }
 .roster-row input, .roster-row select { font-size: 12px; }
 .roster-row input:disabled, select:disabled, .money-input input:disabled { opacity: 1; -webkit-text-fill-color: var(--color-text); cursor: default; }
 .bulk-crew { display: flex; align-items: end; gap: 10px; margin-top: 18px; }
@@ -16,30 +16,30 @@
 .bulk-crew .button { font-size: 12px; padding-inline: 16px; }
 .inline-confirm { padding: 16px; background: #2b231e; border: 1px solid #5e4233; border-radius: 12px; margin-top: 14px; font-size: 12px; line-height: 1.8; }
 .inline-confirm p { margin-bottom: 12px; }
-.allocation-help { color: var(--color-text-secondary); font-size: 11px; line-height: 1.9; word-break: keep-all; margin-block: 14px 0; }
+.allocation-help { color: var(--color-text-secondary); font-size: 12px; line-height: 1.9; word-break: keep-all; margin-block: 14px 0; }
 .recent-button { margin-top: 16px; font-size: 12px; }
 .trial-workspace { display: grid; gap: 18px; min-width: 0; }
 .trial-divider { display: flex; gap: 12px; align-items: center; padding-block: 12px 0; }
 .trial-divider > span { display: inline-block; padding: 7px 12px; border-radius: 9px; border: 1px solid #53482b; color: var(--color-primary); background: #272319; font-size: 13px; font-weight: 650; }
-.trial-divider p { font-size: 11px; color: var(--color-text-secondary); }
+.trial-divider p { font-size: 12px; color: var(--color-text-secondary); }
 .trial-net { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 16px; border: 1px solid var(--color-border); background: var(--color-card-secondary); border-radius: 12px; font-size: 12px; }
 .trial-net .meso-value { font-size: 17px; color: var(--color-primary); font-weight: 650; }
-.ratio-reset { margin-block: 10px 14px; text-decoration: underline; text-underline-offset: 4px; font-size: 11px; }
+.ratio-reset { margin-block: 10px 14px; text-decoration: underline; text-underline-offset: 4px; font-size: 12px; }
 .allocation-table, .individual-table { min-width: 690px; width: 100%; border-collapse: collapse; font-size: 12px; }
 .allocation-table th, .allocation-table td, .individual-table th, .individual-table td { padding: 14px 10px; border-bottom: 1px solid var(--color-border); text-align: right; vertical-align: middle; }
-.allocation-table thead th, .individual-table thead th { color: var(--color-text-secondary); background: var(--color-card-secondary); font-size: 11px; font-weight: 500; white-space: nowrap; }
+.allocation-table thead th, .individual-table thead th { color: var(--color-text-secondary); background: var(--color-card-secondary); font-size: 12px; font-weight: 500; white-space: nowrap; }
 .allocation-table th:first-child, .individual-table th:first-child { text-align: left; }
 .allocation-table tbody th { font-weight: 500; max-width: 180px; }
 .allocation-table .include-label { white-space: normal; }
-.allocation-table .include-label small { display: block; color: var(--color-text-secondary); font-size: 9px; margin-top: 5px; }
+.allocation-table .include-label small { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 5px; }
 .allocation-table .include-label > span { overflow-wrap: anywhere; min-width: 74px; }
 .allocation-table .include-label input { flex-shrink: 0; }
-.allocation-table .penalty-select { min-width: 176px; max-width: 190px; font-size: 11px; padding-inline: 8px; }
+.allocation-table .penalty-select { min-width: 176px; max-width: 190px; font-size: 12px; padding-inline: 8px; }
 .ratio-input { min-width: 125px; margin: 0; }
 .ratio-input > div { display: flex; align-items: center; gap: 4px; }
-.ratio-input input { width: 64px; min-width: 64px; font-size: 11px; text-align: right; padding: 10px 6px; min-height: 40px; }
-.ratio-input .text-button { padding-inline: 5px; font-size: 10px; }
-.ratio-input > div > span { color: var(--color-text-secondary); font-size: 10px; }
+.ratio-input input { width: 64px; min-width: 64px; font-size: 12px; text-align: right; padding: 10px 6px; min-height: 40px; }
+.ratio-input .text-button { padding-inline: 5px; font-size: 12px; }
+.ratio-input > div > span { color: var(--color-text-secondary); font-size: 12px; }
 .allocation-table .final-ratio { min-width: 80px; }
 .final-ratio { color: var(--color-primary); font-weight: 650; }
 .accident-row { background: #281f1b; }
@@ -58,7 +58,7 @@
 .password-dialog form > label { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 18px; }
 .password-dialog label input { margin-top: 9px; }
 .password-dialog .dialog-actions { margin-top: 24px; }
-.password-dialog .local-protection-note { font-size: 10px; line-height: 1.9; margin-top: 20px; }
+.password-dialog .local-protection-note { font-size: 12px; line-height: 1.9; margin-top: 20px; }
 button:disabled { cursor: default; transform: none; opacity: .6; }
 .history-toolbar, .saved-record-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; font-size: 13px; color: var(--color-text-secondary); }
 .history-toolbar strong { color: var(--color-primary); margin-left: 5px; }
@@ -69,14 +69,14 @@ button:disabled { cursor: default; transform: none; opacity: .6; }
 .history-card h2 { margin-top: 14px; font-size: 20px; font-weight: 650; letter-spacing: -.5px; }
 .history-card p { font-size: 12px; color: var(--color-text-secondary); margin-top: 12px; }
 .history-amount { display: grid; gap: 10px; text-align: right; }
-.history-amount > span { color: var(--color-text-secondary); font-size: 11px; }
+.history-amount > span { color: var(--color-text-secondary); font-size: 12px; }
 .history-amount > strong { font-size: 24px; color: var(--color-primary); }
 .history-empty { text-align: center; border: 1px dashed var(--color-border); border-radius: 24px; padding: 64px 24px; }
 .history-empty h2 { font-size: 22px; }
 .history-empty p { color: var(--color-text-secondary); font-size: 13px; line-height: 1.8; margin-top: 16px; }
 .history-empty .button { margin-top: 24px; }
 .saved-record-bar { padding: 18px 22px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-card); }
-.saved-record-bar small { display: block; font-size: 10px; color: var(--color-text-secondary); margin-top: 6px; }
+.saved-record-bar small { display: block; font-size: 12px; color: var(--color-text-secondary); margin-top: 6px; }
 @media (max-width: 1050px) {
   .roster-row { grid-template-columns: 18px minmax(70px, 1fr) 108px 38px; gap: 5px; }
   .roster-row .text-input { padding-inline: 8px; }
@@ -84,28 +84,28 @@ button:disabled { cursor: default; transform: none; opacity: .6; }
 @media (max-width: 580px) {
   .header-inner { gap: 10px; }
   .header-right { gap: 12px; }
-  .header-history { font-size: 11px; }
-  .header-button { font-size: 11px; padding-inline: 10px; }
+  .header-history { font-size: 12px; }
+  .header-button { font-size: 12px; padding-inline: 10px; }
   .header-button svg { display: none; }
   .roster-row { grid-template-columns: 18px minmax(65px, 1fr) 92px 34px; }
-  .roster-row .text-input { font-size: 11px; padding-inline: 6px; }
-  .roster-row .text-button { padding-inline: 2px; font-size: 10px; }
+  .roster-row .text-input { font-size: 12px; padding-inline: 6px; }
+  .roster-row .text-button { padding-inline: 2px; font-size: 12px; }
   .editor-toolbar { align-items: end; }
   .editor-toolbar .button { font-size: 12px; padding-inline: 14px; }
   .editor-toolbar input { min-width: 145px; }
   .trial-divider { gap: 8px; }
-  .trial-divider p { font-size: 10px; }
+  .trial-divider p { font-size: 12px; }
   .history-card { align-items: flex-start; flex-direction: column; padding: 22px; gap: 22px; }
   .history-card h2 { font-size: 18px; }
   .history-amount { width: 100%; text-align: left; }
   .history-amount .history-arrow { display: none; }
-  .history-toolbar .button { font-size: 11px; padding-inline: 12px; }
+  .history-toolbar .button { font-size: 12px; padding-inline: 12px; }
   .saved-record-bar { padding: 16px; }
   .saved-record-bar .button { font-size: 12px; }
   .editor-bottom-actions .button { width: 100%; }
 }
 @media (max-width: 380px) {
   .header-right { gap: 8px; }
-  .header-history { font-size: 10px; }
-  .header-button { font-size: 10px; padding-inline: 8px; }
+  .header-history { font-size: 12px; }
+  .header-button { font-size: 12px; padding-inline: 8px; }
 }

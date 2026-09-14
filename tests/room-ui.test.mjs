@@ -11,7 +11,7 @@ test('UI: room create/share/read/admin edit, plus chaos party selector/filter an
   globalThis.HTMLElement = dom.HTMLElement; globalThis.IS_REACT_ACT_ENVIRONMENT = true
   const { act, createElement, StrictMode } = await import('react')
   const { createRoot } = await import('react-dom/client')
-  const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' })
+  const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   let root
   const button = (text, scope = document) => [...scope.querySelectorAll('button')].find(element => element.textContent.trim() === text)
   const label = text => document.querySelector(`[aria-label="${text}"]`)
@@ -69,6 +69,13 @@ test('UI: room create/share/read/admin edit, plus chaos party selector/filter an
     assert.equal(document.querySelectorAll('.roster-row:not([hidden])').length, 1)
     assert.equal(document.querySelector('.roster-row:not([hidden]) input').value, '소속3')
     assert.equal(label('1트 소속3 사망 차감').disabled, false)
+    const penalty = label('1트 소속3 사망 차감')
+    assert.ok([...penalty.options].some(option => option.textContent === '☠ 50% 차감 (흰경)'))
+    await input(penalty, 'white-exp')
+    assert.equal(penalty.value, 'white-exp')
+    assert.equal(label('2트 소속3 사망 차감').value, '0')
+    await input(penalty, '50')
+    assert.equal(penalty.selectedOptions[0].textContent, '☠ 50% 차감 (3페이즈 사망)')
     assert.equal(label('1트 소속0 사망 차감').disabled, true)
     assert.equal(document.querySelectorAll('.trial-workspace').length, 2)
   } finally {
