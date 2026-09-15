@@ -47,7 +47,7 @@ function Roster({ data, onChange, readOnly, onImport }) {
       <select className="text-input roster-party" value={partyId(member, data)} disabled={readOnly} aria-label={`${member.name || index + 1} 파티 구분`} onChange={event => {
         const party = Number(event.target.value)
         let next = { ...data, members: data.members.map(value => value.id === member.id ? { ...value, party } : value) }
-        if (data.mode.endsWith('raid') && party !== 1) for (let trial = 0; trial < 2; trial++) next = setParticipant(next, trial, member.id, { penalty: 0 })
+        if (data.mode.endsWith('raid') && party !== 1) for (let trial = 0; trial < 2; trial++) next = setParticipant(next, trial, member.id, { penalty: 0, penaltyReason: null })
         onChange(next)
       }}>{partyOptions(data).map(party => <option key={party} value={party}>{partyLabel(party)}</option>)}</select>
       {!readOnly && <button className="text-button" aria-label={`${member.name} 파티원 삭제`} onClick={() => onChange(removeMember(data, member.id))}>삭제</button>}
@@ -99,12 +99,13 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
       return <tr key={member.id} className={status.penalty && status.included ? 'accident-row' : ''}>
         <th scope="row"><label className="include-label"><input type="checkbox" disabled={readOnly} checked={status.included} aria-label={`${trial}트 ${member.name} 참여`} onChange={event => onChange(setParticipant(data, index, member.id, { included: event.target.checked }))} /><span>{member.name || '이름 미입력'}<small>{partyLabel(partyId(member, data))}</small></span></label></th>
         <td>{status.included ? <RatioInput key={`${member.id}-${current}-${setting.manual?.id}`} member={member} trial={trial} points={current} disabled={readOnly || result.count <= 1} onApply={percent => onChange(setManualRatio(data, index, member.id, percent))} /> : '—'}</td>
-        <td><select className="text-input penalty-select" disabled={readOnly || !status.included || (data.mode.endsWith('raid') && member.party !== 1)} aria-label={`${trial}트 ${member.name} 사망 차감`} value={status.penalty === 50 && status.penaltyReason === 'white-exp' ? 'white-exp' : status.penalty} onChange={event => onChange(setParticipant(data, index, member.id, { penalty: event.target.value === 'white-exp' ? 50 : Number(event.target.value), penaltyReason: event.target.value === 'white-exp' ? 'white-exp' : null }))}><option value={0}>없음</option><option value={100}>☠ 100% 차감</option><option value={50}>☠ 50% 차감 (3페이즈 사망)</option><option value="white-exp">☠ 50% 차감 (흰경)</option></select></td>
+        <td><select className="text-input penalty-select" disabled={readOnly || !status.included || (data.mode.endsWith('raid') && member.party !== 1)} aria-label={`${trial}트 ${member.name} 사망 차감`} value={status.penalty === 50 && ['white-exp', 'operating-fund'].includes(status.penaltyReason) ? status.penaltyReason : status.penalty} onChange={event => onChange(setParticipant(data, index, member.id, { penalty: ['white-exp', 'operating-fund'].includes(event.target.value) ? 50 : Number(event.target.value), penaltyReason: ['white-exp', 'operating-fund'].includes(event.target.value) ? event.target.value : null }))}><option value={0}>없음</option><option value={100}>☠ 100% 차감</option><option value={50}>☠ 50% 차감 (3페이즈 사망)</option><option value="white-exp">☠ 50% 차감 (흰경)</option>{data.version >= 3 && <option value="operating-fund">50% 차감 (흰경/공대 운영금)</option>}</select>{allocation?.operatingFund > 0n && <p className="allocation-help">운영금 이동 <Money value={allocation.operatingFund} /></p>}</td>
         <td className="final-ratio">{allocation?.finalPoints != null ? `${(allocation.finalPoints / 100).toFixed(2)}%` : '—'}</td><td><Money value={allocation?.amount} /></td>
       </tr>
-    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? `${(result.rows.reduce((sum, row) => sum + row.finalPoints, 0) / 100).toFixed(2)}%` : '—'}</td><td><Money value={result.valid ? result.final - result.remainder : null} /></td></tr></tfoot></table></ScrollTable>
+    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? `${(result.rows.reduce((sum, row) => sum + row.finalPoints, 0) / 100).toFixed(2)}%` : '—'}</td><td><Money value={result.valid ? result.final - result.remainder - (result.operatingFund ?? 0n) : null} /></td></tr></tfoot></table></ScrollTable>
     {result.error && <p className="result-warning" role="alert">{result.error}</p>}
-    <p className="allocation-help">비율 표시는 소수 둘째 자리에서 합계 100%로 보정하며, 금액은 반올림 전 비율로 계산합니다. 1메소 미만은 잔여 메소로 남깁니다.</p>
+    <p className="allocation-help">기존 흰경은 정상 참여자에게 재분배하고, 흰경/공대 운영금은 기본 몫의 50%를 운영금으로 이동합니다. 개인 비율 합계는 운영금·제외 차감금만큼 100%보다 작아질 수 있습니다. 1메소 미만은 잔여 메소로 남깁니다.</p>
+    <div className="trial-net"><span>{trial}트 공대 운영금</span><Money value={result.operatingFund ?? 0n} /></div>
     <div className="remainder-line"><span>{trial}트 분배 후 잔여 메소</span><Money value={result.remainder} /></div>
     {result.excluded > 0n && <div className="remainder-line"><span>재분배 대상 없음 · 정산 제외 차감금</span><Money value={result.excluded} /></div>}
   </section>
@@ -124,10 +125,12 @@ export function SettlementResult({ result, raid }) {
   return <aside className="result-card" aria-label="정산 결과"><div className="result-heading"><span className="status-dot" /><h2>정산 결과</h2><span>수수료 5%</span></div><dl className="result-lines">
     {[['총 판매금액', total.gross], ['총 판매 수수료', total.fee], ['판매 후 실제 수익', total.net], ...(raid ? [['리저 비용', total.res]] : []), [raid ? '최종 공대 정산금' : '전체 정산금', total.final]].map(([label, value], index) => <div className={index === (raid ? 4 : 3) ? 'result-final' : ''} key={label}><dt>{label}</dt><dd><Money value={value} /></dd></div>)}
     <div><dt>{raid ? '공대원 수' : '참여 인원'}</dt><dd>{result.count}명</dd></div><div><dt>트라이별 참여</dt><dd>1트 {result.trials[0].count}명 · 2트 {result.trials[1].count}명</dd></div>
-    </dl><div className="result-payout"><p>{equal ? '1인당 정산금' : '개인별 정산금 합계'}</p><strong>{formatMeso(result.valid && result.count ? equal ? result.individuals[0].total : total.final - result.remainder : null)}</strong><span>메소</span><small className="korean-money">{result.valid && result.count ? koreanMeso(equal ? result.individuals[0].total : total.final - result.remainder) : ''}</small></div>
+    </dl><div className="result-payout"><p>{equal ? '1인당 정산금' : '개인별 정산금 합계'}</p><strong>{formatMeso(result.valid && result.count ? equal ? result.individuals[0].total : total.final - result.remainder - (total.operatingFund ?? 0n) : null)}</strong><span>메소</span><small className="korean-money">{result.valid && result.count ? koreanMeso(equal ? result.individuals[0].total : total.final - result.remainder - (total.operatingFund ?? 0n)) : ''}</small></div>
     {!equal && result.count > 0 && <p className="allocation-help">개인별 금액은 아래 합산 정산표에서 확인해주세요.</p>}
     <div className="remainder-line"><span>분배 후 잔여 메소</span><Money value={result.remainder} /></div>
     {total.excluded > 0n && <div className="remainder-line"><span>정산 제외 차감금</span><Money value={total.excluded} /></div>}
+    <div className="trial-net operating-fund-total"><span>공대 운영금</span><Money value={total.operatingFund ?? 0n} /></div>
+    <p className="allocation-help">전체 정산금 = 개인 정산금 합계 + 공대 운영금 + 잔여 메소</p>
     {result.trials.map((trial, index) => trial.error && <p className="result-warning" key={index}>{index + 1}트: {trial.error}</p>)}
     {!result.count && <p className="result-warning">파티원을 등록하면 1인당 정산금이 표시됩니다.</p>}
     <p className="calculation-note">수수료는 정확히 5%로 계산합니다.<br />사고 차감은 해당 트라이에만 적용합니다.<br />리저 비용은 해당 트라이 수익에서 차감합니다.</p>

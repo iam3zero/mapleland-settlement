@@ -8,5 +8,5 @@
   input:not([type='checkbox']):not([type='radio']):not(.room-code-input), textarea, select { font-size: 16px !important; }
   input.room-code-input { font-size: 24px !important; }
   .table-scroll-hint { display: block; margin: 0 0 10px; color: var(--color-text-secondary); font-size: 12px; text-align: right; }
-  .allocation-table .penalty-select { min-width: 238px; max-width: none; }
+  .allocation-table .penalty-select { min-width: 280px; max-width: none; }
 }

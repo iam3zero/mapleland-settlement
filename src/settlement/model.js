@@ -72,7 +72,7 @@ export function displayPercentages(weights) {
   return points
 }
 
-export function allocateTrial(members, setting, final, sameParty = false, allowUnpaid = false) {
+export function allocateTrial(members, setting, final, sameParty = false, allowUnpaid = false, fundEnabled = false) {
   const active = members.filter(member => participantState(setting, member.id).included)
   if (!active.length) return { valid: final === 0n, rows: [], count: 0, remainder: final === 0n ? 0n : null, error: final === 0n ? '' : '참여자를 한 명 이상 선택해주세요.' }
   const anchor = active.length > 1 && active.find(member => member.id === setting.manual?.id)
@@ -81,8 +81,9 @@ export function allocateTrial(members, setting, final, sameParty = false, allowU
     : 1n)
   const eligible = member => allowUnpaid || (sameParty ? member.party >= 1 && member.party <= 5 : member.party === 1)
   const penalties = active.map(member => eligible(member) ? participantState(setting, member.id).penalty : 0)
+  const fundMembers = active.map((member, index) => fundEnabled && penalties[index] === 50 && participantState(setting, member.id).penaltyReason === 'operating-fund')
   const groups = [...new Set(active.filter(eligible).map(member => member.party))]
-  const pools = new Map(groups.map(group => [group, weights.reduce((sum, weight, index) => sum + (active[index].party === group ? weight * BigInt(penalties[index]) : 0n), 0n)]))
+  const pools = new Map(groups.map(group => [group, weights.reduce((sum, weight, index) => sum + (active[index].party === group && !fundMembers[index] ? weight * BigInt(penalties[index]) : 0n), 0n)]))
   const healthyCounts = new Map(groups.map(group => [group, active.filter((member, index) => member.party === group && penalties[index] === 0).length]))
   const blocked = groups.find(group => pools.get(group) > 0n && healthyCounts.get(group) === 0)
   const error = final < 0n ? '리저 비용이 해당 트라이의 실제 수익보다 많습니다.'
@@ -95,24 +96,32 @@ export function allocateTrial(members, setting, final, sameParty = false, allowU
     return weight * BigInt(100 - penalties[index]) * scale + share
   })
   const denominator = weights.reduce((sum, weight) => sum + weight, 0n) * 100n * scale
-  const excludedWeight = denominator - adjusted.reduce((sum, weight) => sum + weight, 0n)
+  const fundWeights = weights.map((weight, index) => fundMembers[index] ? weight * 50n * scale : 0n)
+  const fundWeight = fundWeights.reduce((sum, weight) => sum + weight, 0n)
+  const excludedWeight = denominator - adjusted.reduce((sum, weight) => sum + weight, 0n) - fundWeight
+  // Individual payments and fund contributions use whole meso; rounding stays in remainder.
+  const fundAmounts = fundWeights.map(weight => error ? 0n : final * weight / (denominator * 100n) * 100n)
+  const operatingFund = fundAmounts.reduce((sum, amount) => sum + amount, 0n)
   const excluded = allowUnpaid && !error ? final * excludedWeight / denominator : 0n
-  const finalPoints = error ? [] : displayPercentages(excludedWeight > 0n ? [...adjusted, excludedWeight] : adjusted)
+  const finalPoints = error ? [] : displayPercentages(excludedWeight + fundWeight > 0n ? [...adjusted, excludedWeight + fundWeight] : adjusted)
   const rows = active.map((member, index) => ({
     id: member.id, name: member.name, party: member.party,
     penalty: penalties[index], basePoints: basePoints[index], finalPoints: error ? null : finalPoints[index],
     amount: error ? null : final * adjusted[index] / (denominator * 100n) * 100n,
+    ...(fundEnabled ? { operatingFund: fundAmounts[index] } : {}),
   }))
   const paid = rows.reduce((sum, row) => sum + (row.amount ?? 0n), 0n)
-  return { valid: !error, error, rows, count: active.length, remainder: error ? null : final - paid - excluded, ...(allowUnpaid ? { excluded } : {}) }
+  return { valid: !error, error, rows, count: active.length, remainder: error ? null : final - paid - excluded - operatingFund, ...(allowUnpaid ? { excluded } : {}), ...(fundEnabled ? { operatingFund } : {}) }
 }
 
 export function calculateSettlement(data) {
+  // Optional extension: old snapshots without this reason retain their exact result shape.
+  const fundEnabled = data.version >= 3 && data.settings.some(setting => Object.values(setting.participants).some(status => status.penaltyReason === 'operating-fund'))
   const trials = data.tries.map((sales, index) => {
     const totals = totalSales(sales)
     const res = data.mode.endsWith('raid') ? parseAmount(data.res[index]) * 100n : 0n
     const final = totals.net - res
-    const allocation = allocateTrial(data.members, data.settings[index], final, data.version >= 2 && data.mode === 'chaos/party', data.version >= 3 && data.mode.endsWith('/party'))
+    const allocation = allocateTrial(data.members, data.settings[index], final, data.version >= 2 && data.mode === 'chaos/party', data.version >= 3 && data.mode.endsWith('/party'), fundEnabled)
     return { ...totals, res, final: final - (allocation.excluded ?? 0n), sales: sales.map(row => ({ ...row, ...saleAmounts(row.amount) })), ...allocation }
   })
   const total = trials.reduce((sum, trial) => ({
@@ -120,6 +129,7 @@ export function calculateSettlement(data) {
     res: sum.res + trial.res, final: sum.final + trial.final,
   }), { gross: 0n, fee: 0n, net: 0n, res: 0n, final: 0n })
   if (data.version >= 3) total.excluded = trials.reduce((sum, trial) => sum + (trial.excluded ?? 0n), 0n)
+  if (fundEnabled) total.operatingFund = trials.reduce((sum, trial) => sum + (trial.operatingFund ?? 0n), 0n)
   const valid = trials.every(trial => trial.valid)
   const individuals = data.members.map(member => {
     const amounts = trials.map(trial => trial.valid ? trial.rows.find(row => row.id === member.id)?.amount ?? 0n : null)
@@ -152,6 +162,7 @@ export function validateDraft(data) {
     if (!setting || !setting.participants || typeof setting.participants !== 'object' || Array.isArray(setting.participants)) throw new Error('참여 정보를 확인해주세요.')
     for (const [id, status] of Object.entries(setting.participants)) {
       if (!ids.has(id) || typeof status.included !== 'boolean' || ![0, 50, 100].includes(status.penalty)) throw new Error('사고 설정을 확인해주세요.')
+      if (status.penaltyReason === 'operating-fund' && (data.version < 3 || status.penalty !== 50)) throw new Error('공대 운영금 차감은 50% 옵션으로 설정해주세요.')
     }
     if (setting.manual && (!ids.has(setting.manual.id) || !Number.isInteger(setting.manual.basisPoints) || setting.manual.basisPoints < 0 || setting.manual.basisPoints > 10000)) throw new Error('분배 비율을 확인해주세요.')
   }
@@ -171,10 +182,10 @@ export const serializable = value => JSON.parse(JSON.stringify(value, (_, item) 
 
 export function restoreResult(snapshot) {
   const money = value => value === null ? null : BigInt(value)
-  const metrics = object => Object.fromEntries(Object.entries(object).map(([key, value]) => [key, ['gross', 'fee', 'net', 'res', 'final', 'remainder', 'excluded'].includes(key) ? money(value) : value]))
+  const metrics = object => Object.fromEntries(Object.entries(object).map(([key, value]) => [key, ['gross', 'fee', 'net', 'res', 'final', 'remainder', 'excluded', 'operatingFund'].includes(key) ? money(value) : value]))
   return {
     ...snapshot, total: metrics(snapshot.total), remainder: money(snapshot.remainder),
-    trials: snapshot.trials.map(trial => ({ ...metrics(trial), rows: trial.rows.map(row => ({ ...row, amount: money(row.amount) })) })),
+    trials: snapshot.trials.map(trial => ({ ...metrics(trial), rows: trial.rows.map(row => ({ ...row, amount: money(row.amount), ...(row.operatingFund !== undefined ? { operatingFund: money(row.operatingFund) } : {}) })) })),
     individuals: snapshot.individuals.map(member => ({ ...member, trials: member.trials.map(money), total: money(member.total) })),
   }
 }

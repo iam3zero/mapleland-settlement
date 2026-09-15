@@ -34,7 +34,8 @@
 .allocation-table .include-label small { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 5px; }
 .allocation-table .include-label > span { overflow-wrap: anywhere; min-width: 74px; }
 .allocation-table .include-label input { flex-shrink: 0; }
-.allocation-table .penalty-select { min-width: 176px; max-width: 190px; font-size: 12px; padding-inline: 8px; }
+.allocation-table .penalty-select { min-width: 220px; max-width: 240px; font-size: 12px; padding-inline: 8px; }
+.operating-fund-total { margin-top: 20px; flex-wrap: wrap; }
 .ratio-input { min-width: 125px; margin: 0; }
 .ratio-input > div { display: flex; align-items: center; gap: 4px; }
 .ratio-input input { width: 64px; min-width: 64px; font-size: 12px; text-align: right; padding: 10px 6px; min-height: 40px; }
