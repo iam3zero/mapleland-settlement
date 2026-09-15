@@ -46,13 +46,13 @@ function Roster({ data, onChange, readOnly, onImport }) {
       <select className="text-input roster-party" value={partyId(member, data)} disabled={readOnly} aria-label={`${member.name || index + 1} 파티 구분`} onChange={event => {
         const party = Number(event.target.value)
         let next = { ...data, members: data.members.map(value => value.id === member.id ? { ...value, party } : value) }
-        if (party === 0 || (data.mode !== 'chaos/party' && party !== 1)) for (let trial = 0; trial < 2; trial++) next = setParticipant(next, trial, member.id, { penalty: 0 })
+        if (data.mode.endsWith('raid') && party !== 1) for (let trial = 0; trial < 2; trial++) next = setParticipant(next, trial, member.id, { penalty: 0 })
         onChange(next)
       }}>{partyOptions(data).map(party => <option key={party} value={party}>{partyLabel(party)}</option>)}</select>
       {!readOnly && <button className="text-button" aria-label={`${member.name} 파티원 삭제`} onClick={() => onChange(removeMember(data, member.id))}>삭제</button>}
     </div>)}</div>
     {!data.members.length && <p className="empty-hint">파티원을 등록한 뒤, 아래에서 트라이별 참여 여부를 선택해주세요.</p>}
-    <p className="allocation-help">{data.mode === 'chaos/party' ? '사망 차감금은 같은 소속 파티의 정상 참여자에게만 재분배합니다. 다른 파티의 몫은 유지됩니다.' : '1파티만 사망 차감·재분배에 참여합니다. 기타 참여자는 기본/직접 조정 비율로 정산합니다.'}</p>
+    <p className="allocation-help">{!raid ? '사망 차감금은 같은 소속 파티의 정상 참여자에게만 재분배합니다. 기타참여자도 같은 규칙을 적용하며, 받을 사람이 없으면 차감금은 정산에서 제외합니다.' : '1파티만 사망 차감·재분배에 참여합니다. 기타 참여자는 기본/직접 조정 비율로 정산합니다.'}</p>
     {raid && !readOnly && <><button className="button button-secondary recent-button" onClick={() => onImport('roster')}>최근 기록 불러오기</button><p className="allocation-help">최근 노멀 외판공대 명단만 가져옵니다. 현재 명단을 교체하며 참여·비율·사고 설정은 초기화됩니다.</p></>}
   </section>
 }
@@ -89,7 +89,7 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
   const trial = index + 1
   return <section className="editor-card allocation-card"><SectionTitle step="☠" title={`${trial}트 개인별 정산`}><span className="count-badge">{result.count}명 참여</span></SectionTitle>
     <div className="trial-net"><span>{trial}트 최종 분배금</span><Money value={result.final} /></div>
-    <p className="allocation-help">기본 비율을 먼저 조정한 뒤 사고 차감을 적용합니다. 한 명의 비율을 적용하면 나머지는 균등 재계산됩니다. {data.mode === 'chaos/party' ? '사망 차감금은 같은 파티의 정상 참여자에게만 균등 분배됩니다.' : '사망 차감금은 사고 없는 1파티 참여자에게만 균등 분배됩니다.'}</p>
+    <p className="allocation-help">기본 비율을 먼저 조정한 뒤 사고 차감을 적용합니다. 한 명의 비율을 적용하면 나머지는 균등 재계산됩니다. {data.mode.endsWith('/party') ? '차감금은 같은 파티의 정상 참여자에게 균등 분배하며, 받을 사람이 없으면 정산에서 제외합니다. 이 경우 최종 비율 합계는 100%보다 작을 수 있습니다.' : '사망 차감금은 사고 없는 1파티 참여자에게만 균등 분배됩니다.'}</p>
     {!readOnly && <button className="text-button ratio-reset" onClick={() => onChange({ ...data, settings: data.settings.map((value, i) => i === index ? { ...value, manual: null } : value) })}>기본 비율 균등으로 되돌리기</button>}
     <div className="sales-table-scroll" tabIndex={0} role="region" aria-label={`${trial}트 개인별 정산표, 좌우 스크롤 가능`}><table className="allocation-table"><caption className="sr-only">{trial}트 이름, 기본 비율, 차감, 최종 비율, 최종 금액</caption><thead><tr><th>참여 · 이름</th><th>기본 비율</th><th>차감</th><th>최종 비율</th><th>최종 금액</th></tr></thead><tbody>{data.members.map(member => {
       const status = participantState(setting, member.id)
@@ -98,13 +98,14 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
       return <tr key={member.id} className={status.penalty && status.included ? 'accident-row' : ''}>
         <th scope="row"><label className="include-label"><input type="checkbox" disabled={readOnly} checked={status.included} aria-label={`${trial}트 ${member.name} 참여`} onChange={event => onChange(setParticipant(data, index, member.id, { included: event.target.checked }))} /><span>{member.name || '이름 미입력'}<small>{partyLabel(partyId(member, data))}</small></span></label></th>
         <td>{status.included ? <RatioInput key={`${member.id}-${current}-${setting.manual?.id}`} member={member} trial={trial} points={current} disabled={readOnly || result.count <= 1} onApply={percent => onChange(setManualRatio(data, index, member.id, percent))} /> : '—'}</td>
-        <td><select className="text-input penalty-select" disabled={readOnly || !status.included || partyId(member, data) === 0 || (data.mode !== 'chaos/party' && member.party !== 1)} aria-label={`${trial}트 ${member.name} 사망 차감`} value={status.penalty === 50 && status.penaltyReason === 'white-exp' ? 'white-exp' : status.penalty} onChange={event => onChange(setParticipant(data, index, member.id, { penalty: event.target.value === 'white-exp' ? 50 : Number(event.target.value), penaltyReason: event.target.value === 'white-exp' ? 'white-exp' : null }))}><option value={0}>없음</option><option value={100}>☠ 100% 차감</option><option value={50}>☠ 50% 차감 (3페이즈 사망)</option><option value="white-exp">☠ 50% 차감 (흰경)</option></select></td>
+        <td><select className="text-input penalty-select" disabled={readOnly || !status.included || (data.mode.endsWith('raid') && member.party !== 1)} aria-label={`${trial}트 ${member.name} 사망 차감`} value={status.penalty === 50 && status.penaltyReason === 'white-exp' ? 'white-exp' : status.penalty} onChange={event => onChange(setParticipant(data, index, member.id, { penalty: event.target.value === 'white-exp' ? 50 : Number(event.target.value), penaltyReason: event.target.value === 'white-exp' ? 'white-exp' : null }))}><option value={0}>없음</option><option value={100}>☠ 100% 차감</option><option value={50}>☠ 50% 차감 (3페이즈 사망)</option><option value="white-exp">☠ 50% 차감 (흰경)</option></select></td>
         <td className="final-ratio">{allocation?.finalPoints != null ? `${(allocation.finalPoints / 100).toFixed(2)}%` : '—'}</td><td><Money value={allocation?.amount} /></td>
       </tr>
-    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? '100.00%' : '—'}</td><td><Money value={result.valid ? result.final - result.remainder : null} /></td></tr></tfoot></table></div>
+    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? `${(result.rows.reduce((sum, row) => sum + row.finalPoints, 0) / 100).toFixed(2)}%` : '—'}</td><td><Money value={result.valid ? result.final - result.remainder : null} /></td></tr></tfoot></table></div>
     {result.error && <p className="result-warning" role="alert">{result.error}</p>}
     <p className="allocation-help">비율 표시는 소수 둘째 자리에서 합계 100%로 보정하며, 금액은 반올림 전 비율로 계산합니다. 1메소 미만은 잔여 메소로 남깁니다.</p>
     <div className="remainder-line"><span>{trial}트 분배 후 잔여 메소</span><Money value={result.remainder} /></div>
+    {result.excluded > 0n && <div className="remainder-line"><span>재분배 대상 없음 · 정산 제외 차감금</span><Money value={result.excluded} /></div>}
   </section>
 }
 
@@ -125,6 +126,7 @@ export function SettlementResult({ result, raid }) {
     </dl><div className="result-payout"><p>{equal ? '1인당 정산금' : '개인별 정산금 합계'}</p><strong>{formatMeso(result.valid && result.count ? equal ? result.individuals[0].total : total.final - result.remainder : null)}</strong><span>메소</span><small className="korean-money">{result.valid && result.count ? koreanMeso(equal ? result.individuals[0].total : total.final - result.remainder) : ''}</small></div>
     {!equal && result.count > 0 && <p className="allocation-help">개인별 금액은 아래 합산 정산표에서 확인해주세요.</p>}
     <div className="remainder-line"><span>분배 후 잔여 메소</span><Money value={result.remainder} /></div>
+    {total.excluded > 0n && <div className="remainder-line"><span>정산 제외 차감금</span><Money value={total.excluded} /></div>}
     {result.trials.map((trial, index) => trial.error && <p className="result-warning" key={index}>{index + 1}트: {trial.error}</p>)}
     {!result.count && <p className="result-warning">파티원을 등록하면 1인당 정산금이 표시됩니다.</p>}
     <p className="calculation-note">수수료는 정확히 5%로 계산합니다.<br />사고 차감은 해당 트라이에만 적용합니다.<br />리저 비용은 해당 트라이 수익에서 차감합니다.</p>
@@ -142,7 +144,7 @@ export default function SettlementEditor({ data, onChange, readOnly = false, onI
     {raid && <section className="editor-card"><SectionTitle step="02" title="리저 비용" /><p className="editor-help">1트·2트 리저 비용을 각 트라이의 실제 수익에서 한 번만 차감합니다.</p><div className="res-inputs">{data.res.map((value, index) => <div key={index}><span className="input-label">{index + 1}트 리저 비용</span><MoneyInput label={`${index + 1}트 리저 비용`} disabled={readOnly} value={value} onChange={amount => onChange({ ...data, res: data.res.map((cost, i) => i === index ? amount : cost) })} /></div>)}</div><div className="res-total"><span>리저 총 비용</span><Money value={result.total.res} /></div>{!readOnly && <button className="button button-secondary recent-button" onClick={() => onImport('res')}>최근 기록 불러오기</button>}</section>}
     {data.tries.map((rows, index) => <div className="trial-workspace" key={index}>
       <div className="trial-divider"><span>{index + 1}트</span><p>판매와 개인별 분배를 함께 확인하세요</p></div>
-      {raid ? <TrialTable rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} /> : <PartyItems rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} />}
+      {raid ? <><TrialTable rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} /><p className="allocation-help">리투(리트라이 투구)는 손님이 기존 투구를 버리고 다른 투구를 추가로 구매하는 판매입니다. 포함 체크 시 동일한 수수료 5%를 적용합니다.</p></> : <PartyItems rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} />}
       <TrialAllocation data={data} onChange={onChange} index={index} result={result.trials[index]} readOnly={readOnly} />
     </div>)}
   </div><SettlementResult result={result} raid={raid} /></div>

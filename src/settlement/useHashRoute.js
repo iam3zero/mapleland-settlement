@@ -13,7 +13,6 @@ export function useHashRoute() {
       document.getElementById('features')?.scrollIntoView()
     } else {
       window.scrollTo({ top: 0, behavior: 'instant' })
-      document.querySelector('main h1')?.focus({ preventScroll: true })
     }
   }, [route])
   return route

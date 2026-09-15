@@ -1,6 +1,6 @@
 import { createParty, createRaid, parseAmount, saleAmounts, totalSales } from './calculations.js'
 
-export const DRAFT_VERSION = 2
+export const DRAFT_VERSION = 3
 export const MODES = ['normal/party', 'chaos/party', 'normal/raid']
 export const modeLabel = mode => `${mode.startsWith('chaos') ? '자쿰(카오스)' : '자쿰(노멀)'} / ${mode.endsWith('raid') ? '외판공대 정산' : '파티 보스정산'}`
 export const localDate = () => {
@@ -14,7 +14,7 @@ export function createSettlement(mode) {
   const legacy = mode.endsWith('raid') ? createRaid() : createParty()
   return {
     version: DRAFT_VERSION, mode, date: localDate(), members: [],
-    tries: mode.endsWith('raid') ? legacy.tries : [legacy.items, []],
+    tries: mode.endsWith('raid') ? legacy.tries.map((rows, index) => [...rows, retrySale(index)]) : [legacy.items, []],
     res: mode.endsWith('raid') ? legacy.res : ['', ''],
     settings: [trialSettings(), trialSettings()],
   }
@@ -72,21 +72,21 @@ export function displayPercentages(weights) {
   return points
 }
 
-export function allocateTrial(members, setting, final, sameParty = false) {
+export function allocateTrial(members, setting, final, sameParty = false, allowUnpaid = false) {
   const active = members.filter(member => participantState(setting, member.id).included)
   if (!active.length) return { valid: final === 0n, rows: [], count: 0, remainder: final === 0n ? 0n : null, error: final === 0n ? '' : '참여자를 한 명 이상 선택해주세요.' }
   const anchor = active.length > 1 && active.find(member => member.id === setting.manual?.id)
   const weights = active.map(member => anchor
     ? BigInt(member.id === anchor.id ? setting.manual.basisPoints * (active.length - 1) : 10000 - setting.manual.basisPoints)
     : 1n)
-  const eligible = member => sameParty ? member.party >= 1 && member.party <= 5 : member.party === 1
+  const eligible = member => allowUnpaid || (sameParty ? member.party >= 1 && member.party <= 5 : member.party === 1)
   const penalties = active.map(member => eligible(member) ? participantState(setting, member.id).penalty : 0)
   const groups = [...new Set(active.filter(eligible).map(member => member.party))]
   const pools = new Map(groups.map(group => [group, weights.reduce((sum, weight, index) => sum + (active[index].party === group ? weight * BigInt(penalties[index]) : 0n), 0n)]))
   const healthyCounts = new Map(groups.map(group => [group, active.filter((member, index) => member.party === group && penalties[index] === 0).length]))
   const blocked = groups.find(group => pools.get(group) > 0n && healthyCounts.get(group) === 0)
   const error = final < 0n ? '리저 비용이 해당 트라이의 실제 수익보다 많습니다.'
-    : blocked ? '차감금을 받을 정상 ' + blocked + '파티 참여자가 없습니다. 사고·참여 설정을 확인해주세요.' : ''
+    : !allowUnpaid && blocked ? '차감금을 받을 정상 ' + blocked + '파티 참여자가 없습니다. 사고·참여 설정을 확인해주세요.' : ''
   const basePoints = displayPercentages(weights)
   const scale = [...healthyCounts.values()].reduce((product, count) => product * BigInt(count || 1), 1n)
   const adjusted = weights.map((weight, index) => {
@@ -94,15 +94,17 @@ export function allocateTrial(members, setting, final, sameParty = false) {
     const share = eligible(member) && penalties[index] === 0 ? pools.get(member.party) * (scale / BigInt(healthyCounts.get(member.party) || 1)) : 0n
     return weight * BigInt(100 - penalties[index]) * scale + share
   })
-  const denominator = adjusted.reduce((sum, weight) => sum + weight, 0n)
-  const finalPoints = error ? [] : displayPercentages(adjusted)
+  const denominator = weights.reduce((sum, weight) => sum + weight, 0n) * 100n * scale
+  const excludedWeight = denominator - adjusted.reduce((sum, weight) => sum + weight, 0n)
+  const excluded = allowUnpaid && !error ? final * excludedWeight / denominator : 0n
+  const finalPoints = error ? [] : displayPercentages(excludedWeight > 0n ? [...adjusted, excludedWeight] : adjusted)
   const rows = active.map((member, index) => ({
     id: member.id, name: member.name, party: member.party,
     penalty: penalties[index], basePoints: basePoints[index], finalPoints: error ? null : finalPoints[index],
     amount: error ? null : final * adjusted[index] / (denominator * 100n) * 100n,
   }))
   const paid = rows.reduce((sum, row) => sum + (row.amount ?? 0n), 0n)
-  return { valid: !error, error, rows, count: active.length, remainder: error ? null : final - paid }
+  return { valid: !error, error, rows, count: active.length, remainder: error ? null : final - paid - excluded, ...(allowUnpaid ? { excluded } : {}) }
 }
 
 export function calculateSettlement(data) {
@@ -110,12 +112,14 @@ export function calculateSettlement(data) {
     const totals = totalSales(sales)
     const res = data.mode.endsWith('raid') ? parseAmount(data.res[index]) * 100n : 0n
     const final = totals.net - res
-    return { ...totals, res, final, sales: sales.map(row => ({ ...row, ...saleAmounts(row.amount) })), ...allocateTrial(data.members, data.settings[index], final, data.version >= 2 && data.mode === 'chaos/party') }
+    const allocation = allocateTrial(data.members, data.settings[index], final, data.version >= 2 && data.mode === 'chaos/party', data.version >= 3 && data.mode.endsWith('/party'))
+    return { ...totals, res, final: final - (allocation.excluded ?? 0n), sales: sales.map(row => ({ ...row, ...saleAmounts(row.amount) })), ...allocation }
   })
   const total = trials.reduce((sum, trial) => ({
     gross: sum.gross + trial.gross, fee: sum.fee + trial.fee, net: sum.net + trial.net,
     res: sum.res + trial.res, final: sum.final + trial.final,
   }), { gross: 0n, fee: 0n, net: 0n, res: 0n, final: 0n })
+  if (data.version >= 3) total.excluded = trials.reduce((sum, trial) => sum + (trial.excluded ?? 0n), 0n)
   const valid = trials.every(trial => trial.valid)
   const individuals = data.members.map(member => {
     const amounts = trials.map(trial => trial.valid ? trial.rows.find(row => row.id === member.id)?.amount ?? 0n : null)
@@ -125,7 +129,7 @@ export function calculateSettlement(data) {
 }
 
 export function validateDraft(data) {
-  if (!data || ![1, DRAFT_VERSION].includes(data.version) || !MODES.includes(data.mode)) throw new Error('지원하지 않는 정산 데이터입니다.')
+  if (!data || ![1, 2, DRAFT_VERSION].includes(data.version) || !MODES.includes(data.mode)) throw new Error('지원하지 않는 정산 데이터입니다.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(data.date) || !Number.isFinite(Date.parse(data.date)) || new Date(`${data.date}T00:00:00Z`).toISOString().slice(0, 10) !== data.date) throw new Error('정산 날짜를 확인해주세요.')
   if (!Array.isArray(data.members) || data.members.length > 1000) throw new Error('공대원 목록을 확인해주세요.')
   const ids = new Set()
@@ -167,7 +171,7 @@ export const serializable = value => JSON.parse(JSON.stringify(value, (_, item) 
 
 export function restoreResult(snapshot) {
   const money = value => value === null ? null : BigInt(value)
-  const metrics = object => Object.fromEntries(Object.entries(object).map(([key, value]) => [key, ['gross', 'fee', 'net', 'res', 'final', 'remainder'].includes(key) ? money(value) : value]))
+  const metrics = object => Object.fromEntries(Object.entries(object).map(([key, value]) => [key, ['gross', 'fee', 'net', 'res', 'final', 'remainder', 'excluded'].includes(key) ? money(value) : value]))
   return {
     ...snapshot, total: metrics(snapshot.total), remainder: money(snapshot.remainder),
     trials: snapshot.trials.map(trial => ({ ...metrics(trial), rows: trial.rows.map(row => ({ ...row, amount: money(row.amount) })) })),
@@ -190,11 +194,13 @@ export function migrateSettlement(data) {
   validateDraft(data)
   const next = structuredClone(data)
   if (next.version === 1) {
-    next.version = DRAFT_VERSION
     next.members = next.members.map(member => ({ ...member, party: member.party === 2 ? 0 : member.party }))
   }
+  next.version = DRAFT_VERSION
+  if (next.mode === 'normal/raid') next.tries = next.tries.map((rows, index) => rows.some(row => row.name === '리투') ? rows : [...rows, retrySale(index)])
   return next
 }
+const retrySale = index => ({ id: `${index + 1}-retry-helmet`, name: '리투', amount: '', included: false })
 export const partyId = (member, data) => data.version === 1 && member.party === 2 ? 0 : member.party
 export const partyLabel = value => value === 0 ? '기타참여자' : value + '파티'
 export const partyOptions = data => data.mode === 'chaos/party' ? [1, 2, 3, 4, 5, 0] : [1, 0]

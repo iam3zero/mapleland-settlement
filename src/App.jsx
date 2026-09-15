@@ -57,7 +57,7 @@ function App() {
         <aside className="fee-banner"><span className="fee-banner-icon"><Icon name="coin" /></span><div><h2>남는 건 즐거운 모험의 기억만.</h2><p>판매 금액에서 수수료 <strong>5%</strong>를 빼고, 나머지는 파티원 수대로 나눠요.</p></div><span className="fee-formula">판매 금액 × 0.95 ÷ 파티원 수</span></aside>
       </main>}
       <Services route={route} />
-      <footer className="site-footer"><div className="footer-inner"><Brand small /><p>우리 파티를 위한 깔끔한 정산.</p><span>© {new Date().getFullYear()} 메랜정산</span></div></footer>
+      <footer className="site-footer"><div className="footer-inner"><p>© 2026 메랜정산. All rights reserved.</p><p>made by 채세영</p><p>Created for 베민혁</p></div></footer>
     </>
   )
 }

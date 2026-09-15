@@ -69,6 +69,7 @@ test('participation differs by trial; excluding or deleting a manual anchor clea
 })
 test('no healthy recipient blocks save instead of inventing a redistribution policy', () => {
   const data = setParticipant(setParticipant(party(2), 0, 'id-0', { penalty: 100 }), 0, 'id-1', { penalty: 50 })
+  data.version = 2 // Historical records retain their original rules.
   assert.equal(calculateSettlement(data).valid, false)
   assert.throws(() => validateForSave(data), /정상 1파티/)
 })

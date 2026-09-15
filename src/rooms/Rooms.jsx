@@ -8,7 +8,7 @@ import { normalizeRoomCode, roomLink } from './domain.js'
 import './rooms.css'
 
 function StorageNotice({ mode }) {
-  return <p className={`room-storage-note ${mode === 'supabase' ? 'cloud' : ''}`}>{mode === 'supabase' ? '클라우드 정산방 · 방 코드나 링크를 아는 사람은 내용을 읽을 수 있습니다.' : '로컬 정산방 · 현재는 이 브라우저에서만 열립니다. 다른 PC·브라우저 공유는 Supabase 연결과 웹사이트 배포 후 사용할 수 있습니다.'}</p>
+  return <p className={`room-storage-note ${mode === 'supabase' ? 'cloud' : ''}`}>{mode === 'supabase' ? '☁️ 클라우드 정산방 · 방 코드를 공유하면 다른 기기에서도 정산 내역을 확인할 수 있습니다.' : '브라우저 저장 모드 · 이 모드의 기록은 현재 브라우저에 저장됩니다.'}</p>
 }
 function RoomEntrance({ service, mode, onCreated }) {
   const [code, setCode] = useState('')

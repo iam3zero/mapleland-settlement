@@ -45,7 +45,8 @@ test('chaos keeps two raid-wide trials; a party accident cannot transfer funds t
   for (const id of ['3-0', '4-0', '5-0', 'other']) assert.equal(after.trials[0].rows.find(row => row.id === id).amount, before.trials[0].rows.find(row => row.id === id).amount)
   assert.equal(after.trials[0].rows.reduce((sum, row) => sum + row.finalPoints, 0), 10000)
   data = setParticipant(data, 0, '1-1', { penalty: 50 })
-  assert.match(calculateSettlement(data).trials[0].error, /정상 1파티/)
+  assert.equal(calculateSettlement(data).trials[0].error, '')
+  assert.ok(calculateSettlement(data).trials[0].excluded > 0n)
 })
 test('version-1 history stays readable and byte-for-byte intact; editing maps old other party to zero', async () => {
   let data = createSettlement('chaos/party'); data.version = 1
@@ -56,7 +57,7 @@ test('version-1 history stays readable and byte-for-byte intact; editing maps ol
   const raw = JSON.stringify({ version: 1, records: [record] }); memory.setItem(RECORDS_KEY, raw)
   const old = createRecordRepository(memory).get('old-record')
   const migrated = migrateSettlement(old.data)
-  assert.equal(migrated.version, 2); assert.equal(migrated.members[1].party, 0)
+  assert.equal(migrated.version, 3); assert.equal(migrated.members[1].party, 0)
   assert.equal(memory.getItem(RECORDS_KEY), raw); assert.equal(old.data.members[1].party, 2)
   assert.equal(calculateSettlement(migrated).individuals[1].total, calculateSettlement(data).individuals[1].total)
   validateDraft(migrated)

@@ -26,7 +26,7 @@ test('UI: room create/share/read/admin edit, plus chaos party selector/filter an
     const { default: App } = await server.ssrLoadModule('/src/App.jsx')
     const mount = async () => { const node = document.createElement('div'); document.body.append(node); root = createRoot(node); await act(async () => root.render(createElement(StrictMode, null, createElement(App)))) }
     await mount()
-    assert.match(document.body.textContent, /다른 PC·브라우저 공유는 Supabase 연결/)
+    assert.match(document.body.textContent, /브라우저 저장 모드/)
     const createInputs = document.querySelectorAll('.room-form')[1].querySelectorAll('input')
     await input(createInputs[0], 'UI 공대방'); await input(createInputs[1], 'room-ui-password'); await input(createInputs[2], 'room-ui-password')
     await click(button('정산방 생성'))
@@ -76,7 +76,7 @@ test('UI: room create/share/read/admin edit, plus chaos party selector/filter an
     assert.equal(label('2트 소속3 사망 차감').value, '0')
     await input(penalty, '50')
     assert.equal(penalty.selectedOptions[0].textContent, '☠ 50% 차감 (3페이즈 사망)')
-    assert.equal(label('1트 소속0 사망 차감').disabled, true)
+    assert.equal(label('1트 소속0 사망 차감').disabled, false)
     assert.equal(document.querySelectorAll('.trial-workspace').length, 2)
   } finally {
     if (root) await act(async () => root.unmount())

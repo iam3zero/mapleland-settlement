@@ -14,6 +14,7 @@ test('home and all available settlement routes render with correct menu structur
     }
     const home = render('/')
     assert.match(home, /보스 정산을/)
+    for (const text of ['© 2026 메랜정산. All rights reserved.', 'made by 채세영', 'Created for 베민혁']) assert.ok(home.includes(text))
     assert.match(home, /href="#\/bosses"/)
     const menus = render('/bosses')
     for (const path of ['/normal/party', '/normal/raid', '/chaos/party']) assert.ok(menus.includes(`href="#${path}"`))
@@ -28,7 +29,9 @@ test('home and all available settlement routes render with correct menu structur
       assert.doesNotMatch(html, /1트 판매 내역/)
     }
     const raid = render('/normal/raid')
-    assert.equal((raid.match(/type="checkbox"/g) || []).length, 18)
+    assert.equal((raid.match(/type="checkbox"/g) || []).length, 20)
+    assert.match(raid, /1트 리투 판매금액/)
+    assert.match(raid, /2트 리투 판매금액/)
     for (const label of ['1트 판매 내역', '2트 판매 내역', '1트 리저 비용', '2트 리저 비용', '최종 공대 정산금', '1인당 정산금']) assert.ok(raid.includes(label))
     for (const obsolete of ['1.8%', '수작여부', '공대 운영금', '확성기', '1인당 아이템 분배금']) assert.ok(!raid.includes(obsolete))
     assert.match(render('/unknown'), /이 주소에 해당하는 정산 화면이 없습니다./)
