@@ -22,7 +22,8 @@ export function createSupabaseRoomRepository({ url, publicKey = '', fetcher = fe
   }
 }
 export function configureRoomRepository(env = {}, storage, fetcher) {
-  const mode = env.VITE_ROOM_STORAGE || 'local'
+  const mode = env.VITE_ROOM_STORAGE?.trim()
+  if (!mode) throw new Error('정산방 저장 모드가 설정되지 않았습니다. 배포 환경에 VITE_ROOM_STORAGE=supabase와 Supabase 공개 연결 정보를 등록한 뒤 다시 빌드·배포해주세요. 브라우저 저장을 사용하려면 local을 명시해주세요.')
   if (mode === 'supabase') {
     if (!env.VITE_SUPABASE_URL) throw new Error('Supabase 프로젝트 URL이 설정되지 않았습니다.')
     return { mode, service: createSupabaseRoomRepository({ url: env.VITE_SUPABASE_URL, publicKey: env.VITE_SUPABASE_ANON_KEY, fetcher }) }

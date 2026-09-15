@@ -11,7 +11,7 @@ test('UI: room create/share/read/admin edit, plus chaos party selector/filter an
   globalThis.HTMLElement = dom.HTMLElement; globalThis.IS_REACT_ACT_ENVIRONMENT = true
   const { act, createElement, StrictMode } = await import('react')
   const { createRoot } = await import('react-dom/client')
-  const server = await createServer({ envDir: false, server: { middlewareMode: true, hmr: false }, appType: 'custom' })
+  const server = await createServer({ envDir: false, define: { 'import.meta.env.VITE_ROOM_STORAGE': JSON.stringify('local') }, server: { middlewareMode: true, hmr: false }, appType: 'custom' })
   let root
   const button = (text, scope = document) => [...scope.querySelectorAll('button')].find(element => element.textContent.trim() === text)
   const label = text => document.querySelector(`[aria-label="${text}"]`)

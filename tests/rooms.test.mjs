@@ -117,3 +117,26 @@ test('cloud configuration never silently saves to localStorage after missing con
   await assert.rejects(cloud.service.createRoom({ roomName: '새 방', password }), /로컬로 대신/)
   assert.equal(memory.getItem(ROOMS_KEY), null)
 })
+
+test('missing storage mode fails explicitly in development and production; explicit local remains usable', async () => {
+  const memory = storage()
+  for (const PROD of [true, false]) for (const mode of [undefined, '', '   ']) {
+    assert.throws(() => configureRoomRepository({ PROD, VITE_ROOM_STORAGE: mode }, memory), /VITE_ROOM_STORAGE=supabase/)
+    assert.equal(memory.getItem(ROOMS_KEY), null)
+  }
+  const local = configureRoomRepository({ PROD: true, VITE_ROOM_STORAGE: 'local' }, memory)
+  const created = await local.service.createRoom({ roomName: '명시적 로컬 방', password })
+  assert.equal((await local.service.getRoom(created.room.roomCode)).room.roomName, '명시적 로컬 방')
+})
+
+test('production cloud adapter uses configured Supabase origin and never localhost', async () => {
+  let called
+  const cloud = configureRoomRepository({ PROD: true, VITE_ROOM_STORAGE: 'supabase', VITE_SUPABASE_URL: 'https://djrlhlygpichfepugshf.supabase.co', VITE_SUPABASE_ANON_KEY: 'test-public-key' }, storage(), async (url, init) => {
+    called = { url, init }
+    return new Response(JSON.stringify({ room: { roomCode: 'ABC234' }, settlements: [] }))
+  })
+  await cloud.service.getRoom('ABC234')
+  assert.equal(cloud.mode, 'supabase')
+  assert.equal(called.url, 'https://djrlhlygpichfepugshf.supabase.co/functions/v1/room-api')
+  assert.equal(called.init.headers.apikey, 'test-public-key')
+})
