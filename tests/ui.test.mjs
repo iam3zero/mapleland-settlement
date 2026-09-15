@@ -46,6 +46,20 @@ test('UI: register, trial ratios/death, save, remount, view, password-gated edit
       await act(async () => { root.render(createElement(StrictMode, null, createElement(App))) })
     }
     await mount()
+    let scrolled = 0
+    const previousBounds = dom.HTMLElement.prototype.getBoundingClientRect
+    const previousScroll = dom.HTMLElement.prototype.scrollIntoView
+    dom.HTMLElement.prototype.getBoundingClientRect = function () { return this.classList.contains('save-error') ? { top: -900, bottom: -850 } : previousBounds.call(this) }
+    dom.HTMLElement.prototype.scrollIntoView = function (options) { if (this.classList.contains('save-error')) { scrolled++; assert.equal(options.block, 'center') } }
+    const bottomSave = () => document.querySelector('.editor-bottom-actions button')
+    await click(bottomSave())
+    assert.match(document.querySelector('.save-error').textContent, /한 명 이상/)
+    assert.equal(scrolled, 1)
+    assert.equal(document.querySelector('.save-toast'), null)
+    await click(bottomSave())
+    assert.equal(scrolled, 2)
+    dom.HTMLElement.prototype.getBoundingClientRect = previousBounds
+    dom.HTMLElement.prototype.scrollIntoView = previousScroll
     await input(document.querySelector('[placeholder="파티원 닉네임을 입력해주세요"]'), '공대장')
     await click(button('+ 추가'))
     await input(document.querySelector('[placeholder="파티원 닉네임을 입력해주세요"]'), '비숍')
@@ -67,16 +81,19 @@ test('UI: register, trial ratios/death, save, remount, view, password-gated edit
     await click(button('정산 저장'))
     assert.ok(document.querySelector('dialog[open]'))
     const passwords = document.querySelectorAll('input[type="password"]')
-    await input(passwords[0], 'integration-password')
-    await input(passwords[1], 'integration-password')
+    await input(passwords[0], 'test1234')
+    await input(passwords[1], 'test1234')
     await click(button('저장', document.querySelector('dialog')))
     await waitFor(() => document.querySelector('h1')?.textContent === '정산 기록 상세')
+    assert.match(document.querySelector('.save-toast').textContent, /정산이 저장되었습니다/)
+    await click(document.querySelector('[aria-label="저장 알림 닫기"]'))
+    assert.equal(document.querySelector('.save-toast'), null)
     const saved = createRecordRepository(dom.localStorage).list()[0]
     assert.equal(saved.data.members.length, 2)
     assert.equal(saved.result.trials[0].rows[0].amount, '0')
     assert.equal(saved.result.trials[1].rows[0].amount, '232500000')
     assert.equal(saved.data.settings[0].manual.basisPoints, 3000)
-    assert.ok(!dom.localStorage.getItem(RECORDS_KEY).includes('integration-password'))
+    assert.ok(!dom.localStorage.getItem(RECORDS_KEY).includes('test1234'))
     // Remount all React state, preserving the same origin's localStorage (reload behavior).
     await act(async () => root.unmount()); document.body.innerHTML = ''
     await mount()
@@ -91,7 +108,7 @@ test('UI: register, trial ratios/death, save, remount, view, password-gated edit
     await click(button('확인', document.querySelector('dialog')))
     await waitFor(() => document.querySelector('dialog .field-error')?.textContent.includes('비밀번호가 일치하지 않습니다.'))
     assert.ok(byLabel('공대원 1 이름').disabled)
-    await input(document.querySelector('input[type="password"]'), 'integration-password')
+    await input(document.querySelector('input[type="password"]'), 'test1234')
     await click(button('확인', document.querySelector('dialog')))
     await waitFor(() => button('수정 내용 저장'))
     assert.equal(byLabel('공대원 1 이름').disabled, false)
@@ -104,7 +121,7 @@ test('UI: register, trial ratios/death, save, remount, view, password-gated edit
     assert.equal(document.querySelector('h1').textContent, '정산 기록 상세', 'edit is locked again after save')
     // A newer party record must not be used by external-raid recent imports.
     let different = addMember(createSettlement('normal/party'), '다른 파티원')
-    await createRecordRepository(dom.localStorage).create(different, 'another-password')
+    await createRecordRepository(dom.localStorage).create(different, 'test1234')
     await navigate('/normal/raid')
     const recentButtons = () => Array.from(document.querySelectorAll('button')).filter(element => element.textContent === '최근 기록 불러오기')
     await click(recentButtons()[0])

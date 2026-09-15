@@ -1,8 +1,11 @@
+import { SaveError } from '../settlement/feedback'
+import { notifySaved } from '../settlement/notifications'
+import { validateNewPassword } from '../settlement/auth'
 import { useEffect, useState } from 'react'
 import SettlementEditor from '../settlement/SettlementEditor.jsx'
 import { PasswordDialog } from '../settlement/History.jsx'
 import { Money } from '../settlement/shared.jsx'
-import { createSettlement, importRes, importRoster, migrateSettlement, modeLabel, MODES, restoreResult } from '../settlement/model.js'
+import { createSettlement, importRes, importRoster, migrateSettlement, modeLabel, MODES, restoreResult, validateForSave } from '../settlement/model.js'
 import { configureRoomRepository } from './repository.js'
 import { normalizeRoomCode, roomLink } from './domain.js'
 import './rooms.css'
@@ -18,14 +21,15 @@ function RoomEntrance({ service, mode, onCreated }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   return <main id="main" className="page-container service-page"><a className="back-link" href="#/">← 홈으로</a><div className="service-title"><p className="section-kicker">SETTLEMENT ROOM</p><h1 tabIndex={-1}>우리 공대의 정산방</h1><p>로그인 없이 만들고, 방 코드로 함께 확인하세요.</p></div><StorageNotice mode={mode} />
-    {error && <p className="field-error page-message" role="alert">{error}</p>}
+    <SaveError message={error} />
     <div className="room-entry-grid"><section className="editor-card"><h2>정산방 입장</h2><p className="allocation-help">전달받은 영문·숫자 6자리 코드를 입력해주세요.</p><form className="room-form" onSubmit={event => { event.preventDefault(); try { window.location.hash = `/room/${normalizeRoomCode(code)}` } catch (reason) { setError(reason.message) } }}><label>방 코드<input className="text-input room-code-input" value={code} onChange={event => setCode(event.target.value.toUpperCase())} maxLength={6} autoCapitalize="characters" autoComplete="off" placeholder="A7K3P9" required /></label><button className="button button-primary">입장하기 →</button></form></section>
-    <section className="editor-card"><h2>정산방 만들기</h2><p className="allocation-help">한 방에 여러 번의 정산을 모아둘 수 있어요.</p><form className="room-form" onSubmit={async event => { event.preventDefault(); if (password !== confirm) { setError('비밀번호 확인이 일치하지 않습니다.'); return } setBusy(true); setError(''); try { const result = await service.createRoom({ roomName: name, password }); setPassword(''); setConfirm(''); onCreated(result) } catch (reason) { setError(reason.message); setBusy(false) } }}><label>방 이름<input className="text-input" value={name} onChange={event => setName(event.target.value)} maxLength={60} placeholder="○○길드 자쿰 공대" disabled={busy} required /></label><label>수정 비밀번호<input className="text-input" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" disabled={busy} required /></label><label>비밀번호 확인<input className="text-input" type="password" value={confirm} onChange={event => setConfirm(event.target.value)} minLength={8} maxLength={128} autoComplete="new-password" disabled={busy} required /></label><p className="allocation-help">8~128자 · 방의 모든 정산 작성·수정에 사용합니다. 비밀번호 분실 복구는 지원하지 않습니다.</p><button className="button button-primary" disabled={busy}>{busy ? '정산방 만드는 중…' : '정산방 생성'}</button></form></section></div>
+    <section className="editor-card"><h2>정산방 만들기</h2><p className="allocation-help">한 방에 여러 번의 정산을 모아둘 수 있어요.</p><form className="room-form" noValidate onSubmit={async event => { event.preventDefault(); if (busy) return; try { validateNewPassword(password) } catch (reason) { setError(reason.message); return } if (password !== confirm) { setError('비밀번호 확인이 일치하지 않습니다.'); return } setBusy(true); setError(''); try { const result = await service.createRoom({ roomName: name, password }); setPassword(''); setConfirm(''); onCreated(result) } catch (reason) { setError(reason.message); setBusy(false) } }}><label>방 이름<input className="text-input" value={name} onChange={event => setName(event.target.value)} maxLength={60} placeholder="○○길드 자쿰 공대" disabled={busy} required /></label><label>수정 비밀번호<input className="text-input" type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={4} maxLength={8} autoComplete="new-password" disabled={busy} required /></label><label>비밀번호 확인<input className="text-input" type="password" value={confirm} onChange={event => setConfirm(event.target.value)} minLength={4} maxLength={8} autoComplete="new-password" disabled={busy} required /></label><p className="allocation-help">4~8자 · 방의 모든 정산 작성·수정에 사용합니다. 비밀번호 분실 복구는 지원하지 않습니다.</p><button className="button button-primary" disabled={busy}>{busy ? '정산방 만드는 중…' : '정산방 생성'}</button></form></section></div>
     <p className="draft-note">기존에 저장한 개인 정산은 <a href="#/history">지난 정산 내역</a>에서 계속 조회·수정할 수 있습니다.</p>
   </main>
 }
 
 function RoomEditor({ code, record, mode, service, access, bundle, onSaved, onUnlock }) {
+  const [attempt, setAttempt] = useState(0)
   const [data, setData] = useState(() => record ? migrateSettlement(record.data) : createSettlement(mode))
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -37,12 +41,14 @@ function RoomEditor({ code, record, mode, service, access, bundle, onSaved, onUn
     setNotice(`${source.data.date} 기록의 ${kind === 'roster' ? '공대원 명단' : '리저 비용'}을 불러왔습니다.`)
   }
   const save = async () => {
+    if (busy) return
+    setAttempt(value => value + 1)
     setBusy(true); setError('')
-    try { const saved = await service.saveSettlement(code, access.token, data, record ? { settlementId: record.settlementId, revision: record.revision } : {}); await onSaved(saved) }
+    try { validateForSave(data); const saved = await service.saveSettlement(code, access.token, data, record ? { settlementId: record.settlementId, revision: record.revision } : {}); notifySaved(); await onSaved(saved) }
     catch (reason) { setError(reason.message); setBusy(false) }
   }
   return <><div className="service-title"><p className="section-kicker">{bundle.room.roomName}</p><h1 tabIndex={-1}>{record ? '정산 수정' : '새 정산 작성'}</h1><p>{modeLabel(data.mode)} · 공대 전체 1트 / 2트</p></div><div className="editor-toolbar"><label>정산 날짜<input className="text-input" type="date" value={data.date} disabled={busy} onChange={event => setData({ ...data, date: event.target.value })} /></label><div><button className="button button-secondary" onClick={onUnlock} disabled={busy}>관리자 다시 확인</button><button className="button button-primary" disabled={busy} onClick={save}>{busy ? '저장 중…' : record ? '수정 내용 저장' : '정산방에 저장'}</button></div></div>
-    {error && <p className="field-error page-message" role="alert">{error}</p>}{notice && <p className="success-message" role="status">{notice}</p>}
+    <SaveError message={error} attempt={attempt} />{notice && <p className="success-message" role="status">{notice}</p>}
     <fieldset className="room-editor-fieldset" disabled={busy}><SettlementEditor data={data} onChange={setData} onImport={recent} /></fieldset><div className="editor-bottom-actions"><p className="draft-note">저장 전 변경은 새로고침하면 사라집니다. 수정 권한은 확인 후 15분 동안 유효합니다.</p><button className="button button-primary" disabled={busy} onClick={save}>{record ? '수정 내용 저장' : '정산방에 저장'}</button></div></>
 }
 

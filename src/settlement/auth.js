@@ -15,8 +15,12 @@ async function derive(password, salt, iterations) {
   return new Uint8Array(await api.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256))
 }
 
+export function validateNewPassword(password) {
+  if (typeof password !== 'string' || password.length < 4 || password.length > 8) throw new Error('비밀번호는 4~8자리로 입력해주세요.')
+}
+
 export async function protectPassword(password) {
-  if (typeof password !== 'string' || password.length < 8 || password.length > 128) throw new Error('비밀번호는 8~128자로 설정해주세요.')
+  validateNewPassword(password)
   const salt = webCrypto().getRandomValues(new Uint8Array(16))
   return { algorithm: 'PBKDF2-SHA256', iterations: ITERATIONS, salt: hex(salt), hash: hex(await derive(password, salt, ITERATIONS)) }
 }

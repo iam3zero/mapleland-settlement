@@ -14,7 +14,7 @@ test('white-exp keeps existing 50% calculations in all modes and survives save/r
     assert.deepEqual(calculateSettlement(white), calculateSettlement(original))
     const values = new Map()
     const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
-    const saved = await createRecordRepository(storage).create(white, 'test-password-only')
+    const saved = await createRecordRepository(storage).create(white, 'test1234')
     const reloaded = createRecordRepository(storage).list().find(record => record.id === saved.id)
     assert.equal(reloaded.data.settings[0].participants.id0.penaltyReason, 'white-exp')
     assert.deepEqual(reloaded.data.settings[1], data.settings[1])

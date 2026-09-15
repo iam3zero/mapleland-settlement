@@ -1,3 +1,4 @@
+import { ScrollTable } from './feedback'
 import { koreanMeso } from './koreanMeso.js'
 import { useId, useRef, useState } from 'react'
 import { formatMeso, MAX_AMOUNT_DIGITS, saleAmounts, totalSales } from './calculations.js'
@@ -32,8 +33,8 @@ export function BossMenus() {
 export function TrialTable({ rows, trial, onChange, readOnly = false }) {
   const totals = totalSales(rows)
   const update = (id, patch) => onChange(rows.map(row => row.id === id ? { ...row, ...patch } : row))
-  return <section className="editor-card trial-card"><SectionTitle step={`0${trial}`} title={`${trial}트 판매 내역`}><span className="count-badge">{rows.filter(row => row.included).length}개 포함</span></SectionTitle><p className="editor-help">정산에 포함할 항목을 체크해주세요. 제외해도 입력한 금액은 유지됩니다.</p><div className="sales-table-scroll" tabIndex={0} role="region" aria-label={`${trial}트 판매표. 작은 화면에서는 좌우로 스크롤할 수 있습니다.`}><table className="sales-table"><caption className="sr-only">{trial}트 항목별 판매금액과 수수료, 실제 받은 금액. 단위 메소.</caption><thead><tr><th scope="col">포함 · 항목</th><th scope="col">판매금액</th><th scope="col">수수료 5%</th><th scope="col">실제 받은 금액</th></tr></thead><tbody>{rows.map(row => {
+  return <section className="editor-card trial-card"><SectionTitle step={`0${trial}`} title={`${trial}트 판매 내역`}><span className="count-badge">{rows.filter(row => row.included).length}개 포함</span></SectionTitle><p className="editor-help">정산에 포함할 항목을 체크해주세요. 제외해도 입력한 금액은 유지됩니다.</p><ScrollTable tabIndex={0} role="region" aria-label={`${trial}트 판매표. 작은 화면에서는 좌우로 스크롤할 수 있습니다.`}><table className="sales-table"><caption className="sr-only">{trial}트 항목별 판매금액과 수수료, 실제 받은 금액. 단위 메소.</caption><thead><tr><th scope="col">포함 · 항목</th><th scope="col">판매금액</th><th scope="col">수수료 5%</th><th scope="col">실제 받은 금액</th></tr></thead><tbody>{rows.map(row => {
     const sale = saleAmounts(row.amount)
     return <tr key={row.id} className={row.included ? '' : 'excluded-row'}><th scope="row"><label className="include-label"><input type="checkbox" disabled={readOnly} checked={row.included} onChange={event => update(row.id, { included: event.target.checked })} aria-label={`${trial}트 ${row.name} 정산 포함`} /><span>{row.name}</span></label></th><td><MoneyInput disabled={readOnly} label={`${trial}트 ${row.name} 판매금액`} value={row.amount} onChange={amount => update(row.id, { amount })} /></td><td><Money value={sale.fee} /></td><td><Money value={sale.net} />{!row.included && <small className="excluded-tag">합계 제외</small>}</td></tr>
-  })}</tbody><tfoot><tr><th scope="row">포함 항목 합계</th><td><Money value={totals.gross} /></td><td><Money value={totals.fee} /></td><td><Money value={totals.net} /></td></tr></tfoot></table></div></section>
+  })}</tbody><tfoot><tr><th scope="row">포함 항목 합계</th><td><Money value={totals.gross} /></td><td><Money value={totals.fee} /></td><td><Money value={totals.net} /></td></tr></tfoot></table></ScrollTable></section>
 }

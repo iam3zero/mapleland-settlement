@@ -11,7 +11,7 @@ import { configureRoomRepository } from '../src/rooms/repository.js'
 
 const storage = () => { const map = new Map(); return { getItem: key => map.get(key) ?? null, setItem: (key, value) => map.set(key, value) } }
 function draft() { const data = addMember(createSettlement('normal/party'), '공대장'); data.tries[0] = [{ id: 'drop', name: '자쿰의 투구', amount: '7000000' }]; return data }
-const password = 'room-test-password'
+const password = 'test1234'
 
 for (const [amount, expected] of [[1000000n, '100만'], [10000000n, '1천만'], [100000000n, '1억'], [850000000n, '8억 5천'], [1250000000n, '12억 5천'], [1000000000000n, '1조'], [141666667n, '약 1억 4,166만']]) {
   test(`Korean amount ${amount} => ${expected}`, () => assert.equal(koreanMeso(amount * 100n), expected))

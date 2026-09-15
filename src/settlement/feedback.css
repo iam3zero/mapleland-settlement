@@ -1,0 +1,12 @@
+.save-toast-region { position: fixed; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 100; width: max-content; max-width: calc(100% - 32px); }
+.save-toast { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 16px; background: #25291f; border: 1px solid #657044; color: #e2ecc9; font-size: 14px; box-shadow: 0 6px 20px #0004; }
+.save-toast button { border: 0; background: transparent; color: inherit; font-size: 20px; padding: 4px 8px; cursor: pointer; }
+.save-error { scroll-margin-block: 32px; padding: 14px 18px; border-left: 3px solid #f0b29b; background: #2b231e; border-radius: 8px; }
+.scroll-table-wrap { min-width: 0; }
+.table-scroll-hint { display: none; }
+@media (max-width: 800px) {
+  input:not([type='checkbox']):not([type='radio']):not(.room-code-input), textarea, select { font-size: 16px !important; }
+  input.room-code-input { font-size: 24px !important; }
+  .table-scroll-hint { display: block; margin: 0 0 10px; color: var(--color-text-secondary); font-size: 12px; text-align: right; }
+  .allocation-table .penalty-select { min-width: 238px; max-width: none; }
+}

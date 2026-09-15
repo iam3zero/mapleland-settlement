@@ -1,3 +1,4 @@
+import { ScrollTable } from './feedback'
 import { koreanMeso } from './koreanMeso.js'
 import { useId, useState } from 'react'
 import { MOCK_ITEMS, formatMeso, saleAmounts } from './calculations.js'
@@ -91,7 +92,7 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
     <div className="trial-net"><span>{trial}트 최종 분배금</span><Money value={result.final} /></div>
     <p className="allocation-help">기본 비율을 먼저 조정한 뒤 사고 차감을 적용합니다. 한 명의 비율을 적용하면 나머지는 균등 재계산됩니다. {data.mode.endsWith('/party') ? '차감금은 같은 파티의 정상 참여자에게 균등 분배하며, 받을 사람이 없으면 정산에서 제외합니다. 이 경우 최종 비율 합계는 100%보다 작을 수 있습니다.' : '사망 차감금은 사고 없는 1파티 참여자에게만 균등 분배됩니다.'}</p>
     {!readOnly && <button className="text-button ratio-reset" onClick={() => onChange({ ...data, settings: data.settings.map((value, i) => i === index ? { ...value, manual: null } : value) })}>기본 비율 균등으로 되돌리기</button>}
-    <div className="sales-table-scroll" tabIndex={0} role="region" aria-label={`${trial}트 개인별 정산표, 좌우 스크롤 가능`}><table className="allocation-table"><caption className="sr-only">{trial}트 이름, 기본 비율, 차감, 최종 비율, 최종 금액</caption><thead><tr><th>참여 · 이름</th><th>기본 비율</th><th>차감</th><th>최종 비율</th><th>최종 금액</th></tr></thead><tbody>{data.members.map(member => {
+    <ScrollTable tabIndex={0} role="region" aria-label={`${trial}트 개인별 정산표, 좌우 스크롤 가능`}><table className="allocation-table"><caption className="sr-only">{trial}트 이름, 기본 비율, 차감, 최종 비율, 최종 금액</caption><thead><tr><th>참여 · 이름</th><th>기본 비율</th><th>차감</th><th>최종 비율</th><th>최종 금액</th></tr></thead><tbody>{data.members.map(member => {
       const status = participantState(setting, member.id)
       const allocation = result.rows.find(row => row.id === member.id)
       const current = allocation?.basePoints ?? 0
@@ -101,7 +102,7 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
         <td><select className="text-input penalty-select" disabled={readOnly || !status.included || (data.mode.endsWith('raid') && member.party !== 1)} aria-label={`${trial}트 ${member.name} 사망 차감`} value={status.penalty === 50 && status.penaltyReason === 'white-exp' ? 'white-exp' : status.penalty} onChange={event => onChange(setParticipant(data, index, member.id, { penalty: event.target.value === 'white-exp' ? 50 : Number(event.target.value), penaltyReason: event.target.value === 'white-exp' ? 'white-exp' : null }))}><option value={0}>없음</option><option value={100}>☠ 100% 차감</option><option value={50}>☠ 50% 차감 (3페이즈 사망)</option><option value="white-exp">☠ 50% 차감 (흰경)</option></select></td>
         <td className="final-ratio">{allocation?.finalPoints != null ? `${(allocation.finalPoints / 100).toFixed(2)}%` : '—'}</td><td><Money value={allocation?.amount} /></td>
       </tr>
-    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? `${(result.rows.reduce((sum, row) => sum + row.finalPoints, 0) / 100).toFixed(2)}%` : '—'}</td><td><Money value={result.valid ? result.final - result.remainder : null} /></td></tr></tfoot></table></div>
+    })}</tbody><tfoot><tr><th colSpan={3}>최종 비율 합계</th><td>{result.valid && result.count ? `${(result.rows.reduce((sum, row) => sum + row.finalPoints, 0) / 100).toFixed(2)}%` : '—'}</td><td><Money value={result.valid ? result.final - result.remainder : null} /></td></tr></tfoot></table></ScrollTable>
     {result.error && <p className="result-warning" role="alert">{result.error}</p>}
     <p className="allocation-help">비율 표시는 소수 둘째 자리에서 합계 100%로 보정하며, 금액은 반올림 전 비율로 계산합니다. 1메소 미만은 잔여 메소로 남깁니다.</p>
     <div className="remainder-line"><span>{trial}트 분배 후 잔여 메소</span><Money value={result.remainder} /></div>
@@ -112,7 +113,7 @@ function TrialAllocation({ data, onChange, index, result, readOnly }) {
 export function IndividualTotals({ result }) {
   return <section className="editor-card"><SectionTitle step="Σ" title="파티원별 정산 내역" />
     <p className="editor-help">1트 + 2트의 개인별 정산금을 합산합니다.</p>
-    <div className="sales-table-scroll" tabIndex={0} role="region" aria-label="개인별 합산 정산표"><table className="individual-table"><thead><tr><th>이름</th><th>1트</th><th>2트</th><th>총 정산</th></tr></thead><tbody>{result.individuals.map(member => <tr key={member.id}><th scope="row">{member.name || '이름 미입력'}</th><td><Money value={member.trials[0]} /></td><td><Money value={member.trials[1]} /></td><td className="final-ratio"><Money value={member.total} /></td></tr>)}</tbody></table></div>
+    <ScrollTable tabIndex={0} role="region" aria-label="개인별 합산 정산표"><table className="individual-table"><thead><tr><th>이름</th><th>1트</th><th>2트</th><th>총 정산</th></tr></thead><tbody>{result.individuals.map(member => <tr key={member.id}><th scope="row">{member.name || '이름 미입력'}</th><td><Money value={member.trials[0]} /></td><td><Money value={member.trials[1]} /></td><td className="final-ratio"><Money value={member.total} /></td></tr>)}</tbody></table></ScrollTable>
     {!result.individuals.length && <p className="empty-hint">등록된 파티원이 없습니다.</p>}
   </section>
 }

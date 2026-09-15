@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createRecordRepository, RECORDS_KEY } from '../src/settlement/records.js'
 import { addMember, createSettlement, setManualRatio, setParticipant } from '../src/settlement/model.js'
 import { protectPassword, verifyPassword } from '../src/settlement/auth.js'
-const PASSWORD = 'test-only-passphrase'
+const PASSWORD = 'test1234'
 function memoryStorage(initial) {
   const values = new Map(initial)
   return { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
@@ -78,7 +78,7 @@ test('password hashing uses different salts; verification and minimum length wor
   const a = await protectPassword(PASSWORD); const b = await protectPassword(PASSWORD)
   assert.notEqual(a.salt, b.salt); assert.notEqual(a.hash, b.hash)
   assert.equal(await verifyPassword(PASSWORD, a), true); assert.equal(await verifyPassword('incorrect', a), false)
-  await assert.rejects(protectPassword('123'), /8~128/)
+  await assert.rejects(protectPassword('123'), /4~8/)
 })
 test('storage corruption, denial and quota errors preserve original data and report failure', async () => {
   const corrupt = memoryStorage([[RECORDS_KEY, 'not json']]); const repo = createRecordRepository(corrupt)

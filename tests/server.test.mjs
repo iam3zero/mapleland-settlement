@@ -6,7 +6,7 @@ import { createRoomHandler } from '../server/roomHandler.js'
 import { createLocalRoomDatabase } from '../src/rooms/localRoomRepository.js'
 import { createSupabaseRoomRepository } from '../src/rooms/repository.js'
 import { addMember, createSettlement } from '../src/settlement/model.js'
-const password = 'server-test-password'
+const password = 'test1234'
 const origin = 'https://frontend.example'
 
 test('cloud HTTP contract: separate clients read same room; server recomputes and enforces every write', async () => {
