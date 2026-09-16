@@ -1,3 +1,4 @@
+import { roomIcon } from './icons.js'
 export const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 export function roomCode(bytes = crypto.getRandomValues(new Uint8Array(6))) {
   if (bytes.length !== 6) throw new Error('방 코드 생성에 실패했습니다.')
@@ -11,7 +12,8 @@ export function normalizeRoomCode(code) {
 export function roomLink(code, origin = window.location.origin) {
   return `${origin}/#/room/${normalizeRoomCode(code)}`
 }
-export const publicRoom = room => ({ roomId: room.roomId, roomCode: room.roomCode, roomName: room.roomName, createdAt: room.createdAt, updatedAt: room.updatedAt })
+export const publicRoom = room => ({ roomId: room.roomId, roomCode: room.roomCode, roomName: room.roomName, icon: roomIcon(room.icon), createdAt: room.createdAt, updatedAt: room.updatedAt })
+export const sortRooms = rooms => [...rooms].sort((a, b) => (b.latestSettlementDate ?? b.createdAt.slice(0, 10)).localeCompare(a.latestSettlementDate ?? a.createdAt.slice(0, 10)) || b.updatedAt.localeCompare(a.updatedAt))
 export async function tokenHash(token) {
   if (typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) return ''
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(token))

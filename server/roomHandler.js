@@ -20,7 +20,7 @@ export function createRoomHandler(database, { allowedOrigins = [], rateLimitSecr
       if (new TextEncoder().encode(text).length > 1048576) return respond({ error: '정산 데이터가 너무 큽니다.' }, 413)
       let payload
       try { payload = JSON.parse(text) } catch { return respond({ error: '요청 형식을 확인해주세요.' }, 400) }
-      if (!payload || typeof payload !== 'object' || !['create', 'read', 'unlock', 'save', 'revoke'].includes(payload.action)) return respond({ error: '지원하지 않는 요청입니다.' }, 400)
+      if (!payload || typeof payload !== 'object' || !['create', 'read', 'unlock', 'save', 'revoke', 'list', 'delete', 'list-all', 'rename'].includes(payload.action)) return respond({ error: '지원하지 않는 요청입니다.' }, 400)
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
       const ipBucket = await bucketHash(ip)
       const allowed = await database.consumeLimit(`request:${ipBucket}`, 120, 60)
@@ -30,10 +30,14 @@ export function createRoomHandler(database, { allowedOrigins = [], rateLimitSecr
         return respond(await service.createRoom(payload), 201)
       }
       if (payload.action === 'revoke') { await service.revoke(payload.token); return respond({ ok: true }) }
+      if (payload.action === 'list') return respond(await service.listRooms(payload.roomCodes))
+      if (payload.action === 'list-all') return respond(await service.listAllRooms(payload.offset ?? 0))
       const code = normalizeRoomCode(payload.roomCode)
-      if (payload.action === 'unlock') {
+      if (payload.action === 'unlock' || payload.action === 'delete' || payload.action === 'rename') {
         // Room-wide bucket cannot be bypassed by rotating/spoofing IP addresses.
         if (!await database.consumeLimit(`unlock:${code}`, 10, 300)) return respond({ error: '비밀번호 확인 횟수를 초과했습니다. 5분 후 다시 시도해주세요.' }, 429)
+        if (payload.action === 'delete') { await service.deleteRoom(code, payload.token, payload.password); return respond({ ok: true }) }
+        if (payload.action === 'rename') return respond(await service.renameRoom(code, payload.token, payload.password, payload.roomName))
         return respond(await service.unlock(code, payload.password))
       }
       if (payload.action === 'read') return respond(await service.getRoom(code))

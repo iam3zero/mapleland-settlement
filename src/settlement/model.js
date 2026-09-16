@@ -1,4 +1,5 @@
 import { createParty, createRaid, parseAmount, saleAmounts, totalSales } from './calculations.js'
+import { saleStatus } from './bossItems.js'
 
 export const DRAFT_VERSION = 3
 export const MODES = ['normal/party', 'chaos/party', 'normal/raid']
@@ -209,6 +210,7 @@ export function migrateSettlement(data) {
   }
   next.version = DRAFT_VERSION
   if (next.mode === 'normal/raid') next.tries = next.tries.map((rows, index) => rows.some(row => row.name === '리투') ? rows : [...rows, retrySale(index)])
+  if (next.mode.endsWith('/party')) next.tries = next.tries.map(rows => rows.map(row => ({ ...row, saleStatus: saleStatus(row.amount) })))
   return next
 }
 const retrySale = index => ({ id: `${index + 1}-retry-helmet`, name: '리투', amount: '', included: false })

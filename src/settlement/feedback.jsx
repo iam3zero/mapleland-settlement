@@ -3,13 +3,14 @@ import './feedback.css'
 
 export function SaveToast() {
   const [visible, setVisible] = useState(false)
+  const [message, setMessage] = useState('정산이 저장되었습니다.')
   useEffect(() => {
     let timer
-    const show = () => { setVisible(true); clearTimeout(timer); timer = setTimeout(() => setVisible(false), 5000) }
+    const show = event => { setMessage(typeof event.detail === 'string' ? event.detail : '정산이 저장되었습니다.'); setVisible(true); clearTimeout(timer); timer = setTimeout(() => setVisible(false), 5000) }
     window.addEventListener('settlement-saved', show)
     return () => { window.removeEventListener('settlement-saved', show); clearTimeout(timer) }
   }, [])
-  return <div className="save-toast-region" role="status" aria-live="polite" aria-atomic="true">{visible && <div className="save-toast"><span aria-hidden="true">✓</span> 정산이 저장되었습니다.<button type="button" aria-label="저장 알림 닫기" onClick={() => setVisible(false)}>×</button></div>}</div>
+  return <div className="save-toast-region" role="status" aria-live="polite" aria-atomic="true">{visible && <div className="save-toast"><span aria-hidden="true">✓</span> {message}<button type="button" aria-label="저장 알림 닫기" onClick={() => setVisible(false)}>×</button></div>}</div>
 }
 
 export function SaveError({ message, attempt }) {

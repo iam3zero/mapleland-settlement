@@ -28,6 +28,31 @@ export function createLocalRoomDatabase(storage) {
   }
   const write = data => { try { storage.setItem(ROOMS_KEY, JSON.stringify(data)) } catch { throw new Error('저장 공간이 부족하거나 차단되어 정산방을 저장하지 못했습니다.') } }
   return {
+    async listAllRooms(offset) {
+      const data = read()
+      return data.rooms.map(room => {
+        const records = data.settlements.filter(record => record.roomId === room.roomId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        return { ...room, latestSettlementDate: records[0]?.data.date ?? null, lastActivityAt: records[0]?.updatedAt ?? room.createdAt }
+      }).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt) || a.roomId.localeCompare(b.roomId)).slice(offset, offset + 31)
+    },
+    async renameRoom(roomId, hash, name) {
+      const session = sessions.get(hash)
+      if (!session || session.roomId !== roomId || Date.parse(session.expiresAt) <= Date.now()) throw new Error('관리자 비밀번호를 다시 확인해주세요.')
+      const data = read()
+      if (!data.rooms.some(room => room.roomId === roomId)) throw new Error('정산방을 찾을 수 없습니다.')
+      write({ ...data, rooms: data.rooms.map(room => room.roomId === roomId ? { ...room, roomName: name } : room) })
+    },
+    async listRooms(codes) {
+      const data = read()
+      return data.rooms.filter(room => codes.includes(room.roomCode)).map(room => ({ ...room, latestSettlementDate: data.settlements.filter(record => record.roomId === room.roomId).map(record => record.data.date).sort().at(-1) ?? null }))
+    },
+    async deleteRoom(roomId, hash) {
+      const session = sessions.get(hash)
+      if (!session || session.roomId !== roomId || Date.parse(session.expiresAt) <= Date.now()) throw new Error('관리자 비밀번호를 다시 확인해주세요.')
+      const data = read()
+      write({ ...data, rooms: data.rooms.filter(room => room.roomId !== roomId), settlements: data.settlements.filter(record => record.roomId !== roomId) })
+      for (const [key, value] of sessions) if (value.roomId === roomId) sessions.delete(key)
+    },
     async findRoom(code) { return read().rooms.find(room => room.roomCode === code) ?? null },
     async insertRoom(room, session) {
       const data = read()
@@ -38,12 +63,16 @@ export function createLocalRoomDatabase(storage) {
     async findSettlement(roomId, id) { return read().settlements.find(record => record.roomId === roomId && record.settlementId === id) ?? null },
     async saveSettlement(record, previousRevision) {
       const data = read()
+      if (!data.rooms.some(room => room.roomId === record.roomId)) throw new Error('정산방을 찾을 수 없습니다.')
       const current = data.settlements.find(value => value.settlementId === record.settlementId)
       if (previousRevision !== null && (!current || current.roomId !== record.roomId || current.revision !== previousRevision)) throw new Error('다른 화면에서 변경된 기록입니다. 최신 기록을 다시 열어주세요.')
       if (previousRevision === null && current) throw new Error('이미 저장된 기록입니다.')
       write({ ...data, rooms: data.rooms.map(room => room.roomId === record.roomId ? { ...room, updatedAt: record.updatedAt } : room), settlements: current ? data.settlements.map(value => value.settlementId === record.settlementId ? record : value) : [...data.settlements, record] })
     },
-    async insertSession(session) { sessions.set(session.tokenHash, session) },
+    async insertSession(session) {
+      if (!read().rooms.some(room => room.roomId === session.roomId)) throw new Error('정산방을 찾을 수 없습니다.')
+      sessions.set(session.tokenHash, session)
+    },
     async getSession(hash) { return sessions.get(hash) ?? null },
     async deleteSession(hash) { sessions.delete(hash) },
   }

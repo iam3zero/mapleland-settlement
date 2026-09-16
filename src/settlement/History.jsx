@@ -3,7 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { modeLabel } from './model.js'
 import { Money } from './shared.jsx'
 
-export function PasswordDialog({ mode, title, onSubmit, onCancel, cloud = false }) {
+export function PasswordDialog({ mode, title, description, submitLabel, children, onSubmit, onCancel, cloud = false }) {
   const ref = useRef(null)
   const id = useId()
   const [password, setPassword] = useState('')
@@ -18,7 +18,7 @@ export function PasswordDialog({ mode, title, onSubmit, onCancel, cloud = false 
   }, [])
   return <dialog ref={ref} className="notice-dialog password-dialog" aria-labelledby={`${id}-title`} aria-describedby={`${id}-description`} onCancel={event => { event.preventDefault(); if (!busy) onCancel() }}>
     <h2 id={`${id}-title`}>{title ?? (creating ? '정산 기록 보호' : '정산 수정')}</h2>
-    <p id={`${id}-description`}>{creating ? '이 기록을 수정할 때 사용할 비밀번호를 설정해주세요.' : '이 기록을 수정하려면 비밀번호를 입력해주세요.'}</p>
+    <p id={`${id}-description`}>{description ?? (creating ? '이 기록을 수정할 때 사용할 비밀번호를 설정해주세요.' : '이 기록을 수정하려면 비밀번호를 입력해주세요.')}</p>
     <form noValidate onSubmit={async event => {
       event.preventDefault()
       if (busy) return
@@ -28,12 +28,13 @@ export function PasswordDialog({ mode, title, onSubmit, onCancel, cloud = false 
       try { await onSubmit(password); setPassword(''); setConfirmation('') }
       catch (reason) { setError(reason.message); setBusy(false) }
     }}>
+      {children && <fieldset className="room-editor-fieldset" disabled={busy}>{children}</fieldset>}
       <label>비밀번호<input className="text-input" type="password" value={password} minLength={creating ? 4 : undefined} maxLength={creating ? 8 : 128} autoComplete={creating ? 'new-password' : 'current-password'} autoFocus required disabled={busy} onChange={event => setPassword(event.target.value)} /></label>
       {creating && <label>비밀번호 확인<input className="text-input" type="password" value={confirmation} minLength={4} maxLength={8} autoComplete="new-password" required disabled={busy} onChange={event => setConfirmation(event.target.value)} /></label>}
       {creating && <p className="allocation-help">4~8자 · 비밀번호를 잊으면 이 기록을 수정할 수 없습니다.</p>}
       {!creating && <p className="allocation-help">기존의 긴 비밀번호도 그대로 입력할 수 있습니다.</p>}
       {error && <p className="field-error" role="alert">{error}</p>}
-      <div className="dialog-actions"><button className="button button-secondary" type="button" disabled={busy} onClick={onCancel}>취소</button><button className="button button-primary" disabled={busy} type="submit">{busy ? '확인 중…' : creating ? '저장' : '확인'}</button></div>
+      <div className="dialog-actions"><button className="button button-secondary" type="button" disabled={busy} onClick={onCancel}>취소</button><button className="button button-primary" disabled={busy} type="submit">{busy ? '확인 중…' : submitLabel ?? (creating ? '저장' : '확인')}</button></div>
       <p className="local-protection-note">{cloud ? '정산방 서버에서 비밀번호를 확인합니다. 수정 권한은 이 정산방에 한해 15분 동안 유효합니다.' : '이 브라우저에 저장되는 로컬 수정 보호입니다. 다른 기기와 공유되지 않으며, 브라우저 데이터에 직접 접근하는 사용자를 막는 서버 인증은 아닙니다.'}</p>
     </form>
   </dialog>

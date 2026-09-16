@@ -1,7 +1,8 @@
+import { itemsForBoss, saleStatus } from './bossItems.js'
 import { ScrollTable } from './feedback'
 import { koreanMeso } from './koreanMeso.js'
 import { useId, useState } from 'react'
-import { MOCK_ITEMS, formatMeso, saleAmounts } from './calculations.js'
+import { formatMeso, saleAmounts } from './calculations.js'
 import { addMember, calculateSettlement, participantState, partyId, partyLabel, partyOptions, removeMember, setManualRatio, setParticipant } from './model.js'
 import { Money, MoneyInput, SectionTitle, TrialTable } from './shared.jsx'
 
@@ -58,21 +59,22 @@ function Roster({ data, onChange, readOnly, onImport }) {
   </section>
 }
 
-function PartyItems({ rows, trial, onChange, readOnly }) {
+function PartyItems({ rows, trial, onChange, readOnly, mode }) {
   const listId = useId()
   const update = (id, patch) => onChange(rows.map(row => row.id === id ? { ...row, ...patch } : row))
   return <section className="editor-card"><SectionTitle step={`0${trial + 1}`} title={`${trial}트 아이템 판매 내역`}><span className="count-badge">{rows.length}개</span></SectionTitle>
-    <p className="editor-help">이름으로 검색하거나 직접 입력할 수 있어요. 검색 목록은 임시 데이터입니다.</p>
-    <datalist id={listId}>{MOCK_ITEMS.map(item => <option key={item} value={item} />)}</datalist>
+    <p className="editor-help">보스별 내부 목록에서 검색하거나 직접 입력할 수 있어요. 기존 임시 목록이며 실제 드롭 확정 목록은 아닙니다. 금액 없이 먼저 저장한 뒤 판매되면 금액을 입력해주세요.</p>
+    <datalist id={listId}>{itemsForBoss(mode).map(item => <option key={item} value={item} />)}</datalist>
     <div className="party-items">{rows.map((item, index) => {
       const sale = saleAmounts(item.amount)
       return <article className="party-item" key={item.id}><div className="item-row-heading"><span>아이템 {index + 1}</span>{!readOnly && <button className="text-button" aria-label={`${trial}트 아이템 ${index + 1} 삭제`} onClick={() => onChange(rows.filter(row => row.id !== item.id))}>삭제</button>}</div>
-        <div className="item-fields"><label>아이템명<input disabled={readOnly} className="text-input" list={listId} maxLength={80} value={item.name} placeholder="아이템 검색 또는 직접 입력" onChange={event => update(item.id, { name: event.target.value })} /></label><div><span className="input-label">판매금액</span><MoneyInput disabled={readOnly} label={`${trial}트 아이템 ${index + 1} 판매금액`} value={item.amount} onChange={amount => update(item.id, { amount })} /></div></div>
+        <div className="item-fields"><label>아이템명<input disabled={readOnly} className="text-input" list={listId} maxLength={80} value={item.name} placeholder="아이템 검색 또는 직접 입력" onChange={event => update(item.id, { name: event.target.value })} /></label><div><span className="input-label">판매금액</span><MoneyInput disabled={readOnly} label={`${trial}트 아이템 ${index + 1} 판매금액`} value={item.amount} onChange={amount => update(item.id, { amount, saleStatus: saleStatus(amount) })} /></div></div>
+        <p className={`sale-status sale-status-${saleStatus(item.amount)}`}>{saleStatus(item.amount) === 'sold' ? '판매 완료' : '판매 전 · 정산 합계 제외'}</p>
         {!item.name.trim() && <p className="field-error">아이템명을 입력해주세요.</p>}<div className="item-receipt"><span>수수료 5% <Money value={sale.fee} /></span><span>실제 받은 금액 <Money value={sale.net} /></span></div>
       </article>
     })}</div>
     {!rows.length && <p className="empty-hint item-empty">등록된 아이템이 없습니다.</p>}
-    {!readOnly && <button className="button button-secondary add-item-button" onClick={() => onChange([...rows, { id: crypto.randomUUID(), name: '', amount: '' }])}>+ 아이템 추가</button>}
+    {!readOnly && <button className="button button-secondary add-item-button" onClick={() => onChange([...rows, { id: crypto.randomUUID(), name: '', amount: '', saleStatus: 'pending' }])}>+ 아이템 추가</button>}
   </section>
 }
 
@@ -148,7 +150,7 @@ export default function SettlementEditor({ data, onChange, readOnly = false, onI
     {raid && <section className="editor-card"><SectionTitle step="02" title="리저 비용" /><p className="editor-help">1트·2트 리저 비용을 각 트라이의 실제 수익에서 한 번만 차감합니다.</p><div className="res-inputs">{data.res.map((value, index) => <div key={index}><span className="input-label">{index + 1}트 리저 비용</span><MoneyInput label={`${index + 1}트 리저 비용`} disabled={readOnly} value={value} onChange={amount => onChange({ ...data, res: data.res.map((cost, i) => i === index ? amount : cost) })} /></div>)}</div><div className="res-total"><span>리저 총 비용</span><Money value={result.total.res} /></div>{!readOnly && <button className="button button-secondary recent-button" onClick={() => onImport('res')}>최근 기록 불러오기</button>}</section>}
     {data.tries.map((rows, index) => <div className="trial-workspace" key={index}>
       <div className="trial-divider"><span>{index + 1}트</span><p>판매와 개인별 분배를 함께 확인하세요</p></div>
-      {raid ? <><TrialTable rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} /><p className="allocation-help">리투(리트라이 투구)는 손님이 기존 투구를 버리고 다른 투구를 추가로 구매하는 판매입니다. 포함 체크 시 동일한 수수료 5%를 적용합니다.</p></> : <PartyItems rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} />}
+      {raid ? <><TrialTable rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} /><p className="allocation-help">리투(리트라이 투구)는 손님이 기존 투구를 버리고 다른 투구를 추가로 구매하는 판매입니다. 포함 체크 시 동일한 수수료 5%를 적용합니다.</p></> : <PartyItems mode={data.mode} rows={rows} trial={index + 1} onChange={next => setRows(index, next)} readOnly={readOnly} />}
       <TrialAllocation data={data} onChange={onChange} index={index} result={result.trials[index]} readOnly={readOnly} />
     </div>)}
   </div><SettlementResult result={result} raid={raid} /></div>
