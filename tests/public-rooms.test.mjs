@@ -63,7 +63,7 @@ test('SQL public ordering, permissions, rename and unique code update preserve o
   const db = new PGlite()
   try {
     await db.exec('create role anon; create role authenticated; create role service_role bypassrls;')
-    for (const file of ['202609140001_rooms.sql', '202609160001_room_icons_delete.sql', '202609160002_public_rooms_rename.sql']) await db.exec(await fs.readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'))
+    for (const file of ['202609140001_rooms.sql', '202609160001_room_icons_delete.sql', '202609160002_public_rooms_rename.sql', '202609170001_room_directory_access.sql']) await db.exec(await fs.readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'))
     const room = { roomId: crypto.randomUUID(), roomCode: 'ABC234', roomName: '축캐 자쿰 외판공대', adminPasswordHash: { hash: 'secret' }, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z' }
     const session = { roomId: room.roomId, tokenHash: 'a'.repeat(64), expiresAt: new Date(Date.now() + 600000).toISOString() }
     await db.query('select public.room_api_create($1,$2)', [room, session])
@@ -75,12 +75,14 @@ test('SQL public ordering, permissions, rename and unique code update preserve o
       await db.exec(`set role ${role}`)
       await assert.rejects(db.query('select * from public.room_api_list_all(0)'), /permission denied/)
       await assert.rejects(db.query('select public.room_api_rename($1,$2,$3)', [room.roomId, session.tokenHash, 'bad']), /permission denied/)
+      await assert.rejects(db.query('select public.room_api_update_metadata($1,$2,$3,$4)', [room.roomId, session.tokenHash, 'bad', '🍀']), /permission denied/)
       await db.exec('reset role')
     }
     await db.exec('set role service_role')
     const rows = (await db.query('select * from public.room_api_list_all(0)')).rows
     assert.equal(rows[0].room_id, room.roomId, 'uses record updated_at, not its settlement date')
-    assert.equal(rows[1].last_activity_at.toISOString(), other.createdAt.replace('Z', '.000Z'))
+    assert.equal(rows[1].room_id, other.roomId)
+    assert.doesNotMatch(JSON.stringify(rows), /room_code|roomCode|settlements|members|result/)
     assert.doesNotMatch(JSON.stringify(rows), /secret|password|token|hash/i)
     const before = (await db.query('select * from public.settlement_rooms where room_id=$1', [room.roomId])).rows[0]
     const recordsBefore = (await db.query('select * from public.room_settlements')).rows
@@ -88,6 +90,9 @@ test('SQL public ordering, permissions, rename and unique code update preserve o
     await assert.rejects(db.query('select public.room_api_rename($1,$2,$3)', [room.roomId, 'x'.repeat(64), 'bad']), /invalid admin session/)
     await db.query('select public.room_api_rename($1,$2,$3)', [room.roomId, session.tokenHash, '새 이름'])
     assert.deepEqual((await db.query('select * from public.settlement_rooms where room_id=$1', [room.roomId])).rows[0], { ...before, room_name: '새 이름' })
+    await assert.rejects(db.query('select public.room_api_update_metadata($1,$2,$3,$4)', [room.roomId, 'x'.repeat(64), 'bad', '🍀']), /invalid admin session/)
+    await db.query('select public.room_api_update_metadata($1,$2,$3,$4)', [room.roomId, session.tokenHash, '새 이름', '🍀'])
+    assert.deepEqual((await db.query('select * from public.settlement_rooms where room_id=$1', [room.roomId])).rows[0], { ...before, room_name: '새 이름', icon: '🍀' })
     await db.query("update public.settlement_rooms set room_code='18PMMM' where room_id=$1", [room.roomId])
     await assert.rejects(db.query("update public.settlement_rooms set room_code='18PMMM' where room_id=$1", [other.roomId]), /unique/)
     assert.equal((await db.query("select room_id from public.settlement_rooms where room_code='18PMMM'")).rows[0].room_id, room.roomId)

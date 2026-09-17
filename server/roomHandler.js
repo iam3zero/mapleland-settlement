@@ -20,7 +20,7 @@ export function createRoomHandler(database, { allowedOrigins = [], rateLimitSecr
       if (new TextEncoder().encode(text).length > 1048576) return respond({ error: '정산 데이터가 너무 큽니다.' }, 413)
       let payload
       try { payload = JSON.parse(text) } catch { return respond({ error: '요청 형식을 확인해주세요.' }, 400) }
-      if (!payload || typeof payload !== 'object' || !['create', 'read', 'unlock', 'save', 'revoke', 'list', 'delete', 'list-all', 'rename'].includes(payload.action)) return respond({ error: '지원하지 않는 요청입니다.' }, 400)
+      if (!payload || typeof payload !== 'object' || !['create', 'read', 'enter', 'unlock', 'save', 'revoke', 'list', 'delete', 'list-all', 'rename'].includes(payload.action)) return respond({ error: '지원하지 않는 요청입니다.' }, 400)
       const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
       const ipBucket = await bucketHash(ip)
       const allowed = await database.consumeLimit(`request:${ipBucket}`, 120, 60)
@@ -30,6 +30,7 @@ export function createRoomHandler(database, { allowedOrigins = [], rateLimitSecr
         return respond(await service.createRoom(payload), 201)
       }
       if (payload.action === 'revoke') { await service.revoke(payload.token); return respond({ ok: true }) }
+      if (['read', 'enter', 'list'].includes(payload.action) && !await database.consumeLimit(`entry:${ipBucket}`, 30, 60)) return respond({ error: '방 코드 확인 요청이 많습니다. 잠시 후 다시 시도해주세요.' }, 429)
       if (payload.action === 'list') return respond(await service.listRooms(payload.roomCodes))
       if (payload.action === 'list-all') return respond(await service.listAllRooms(payload.offset ?? 0))
       const code = normalizeRoomCode(payload.roomCode)
@@ -37,10 +38,11 @@ export function createRoomHandler(database, { allowedOrigins = [], rateLimitSecr
         // Room-wide bucket cannot be bypassed by rotating/spoofing IP addresses.
         if (!await database.consumeLimit(`unlock:${code}`, 10, 300)) return respond({ error: '비밀번호 확인 횟수를 초과했습니다. 5분 후 다시 시도해주세요.' }, 429)
         if (payload.action === 'delete') { await service.deleteRoom(code, payload.token, payload.password); return respond({ ok: true }) }
-        if (payload.action === 'rename') return respond(await service.renameRoom(code, payload.token, payload.password, payload.roomName))
+        if (payload.action === 'rename') return respond(await service.renameRoom(code, payload.token, payload.password, payload.roomName, payload.icon))
         return respond(await service.unlock(code, payload.password))
       }
       if (payload.action === 'read') return respond(await service.getRoom(code))
+      if (payload.action === 'enter') return respond(await service.enterRoom(payload.roomId, code))
       return respond(await service.saveSettlement(code, payload.token, payload.data, { settlementId: payload.settlementId, revision: payload.revision }))
     } catch (error) {
       const message = error instanceof Error ? error.message : '정산방 요청에 실패했습니다.'

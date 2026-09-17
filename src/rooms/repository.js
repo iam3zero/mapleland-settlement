@@ -16,9 +16,10 @@ export function createSupabaseRoomRepository({ url, publicKey = '', fetcher = fe
   return {
     createRoom: payload => call('create', payload),
     getRoom: roomCode => call('read', { roomCode }),
+    enterRoom: (roomId, roomCode) => call('enter', { roomId, roomCode }),
     listRooms: roomCodes => call('list', { roomCodes }),
     listAllRooms: (offset = 0) => call('list-all', { offset }),
-    renameRoom: (roomCode, token, password, roomName) => call('rename', { roomCode, token, password, roomName }),
+    renameRoom: (roomCode, token, password, roomName, icon) => call('rename', { roomCode, token, password, roomName, icon }),
     deleteRoom: (roomCode, token, password) => call('delete', { roomCode, token, password }),
     unlock: (roomCode, password) => call('unlock', { roomCode, password }),
     saveSettlement: (roomCode, token, data, options = {}) => call('save', { roomCode, token, data, ...options }),

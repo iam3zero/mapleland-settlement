@@ -39,6 +39,9 @@
 .room-icon-options { display: grid; grid-template-columns: repeat(6, 1fr); width: 100%; gap: 6px; padding: 12px; background: var(--color-card-secondary); border-radius: 16px; }
 .room-icon-options button { font-size: 24px; border: 1px solid transparent; background: transparent; border-radius: 10px; min-height: 44px; cursor: pointer; }
 .room-icon-options button[aria-pressed='true'] { border-color: var(--color-primary); }
+.password-dialog .room-icon-picker { margin-top: 16px; }
+.password-dialog .room-icon-options { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.password-dialog .room-icon-options button { min-width: 0; padding-inline: 0; }
 .room-danger { margin-top: 32px; padding: 18px; border: 1px solid var(--color-border); border-radius: 16px; font-size: 12px; color: var(--color-text-secondary); }
 .room-danger summary { cursor: pointer; }
 .room-danger p { margin-block: 12px; }

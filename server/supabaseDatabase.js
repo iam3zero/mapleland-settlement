@@ -21,8 +21,8 @@ export function createSupabaseDatabase(url, serviceRoleKey, fetcher = fetch) {
   const recordFromDb = row => row ? ({ settlementId: row.settlement_id, roomId: row.room_id, data: row.data, result: row.result, revision: row.revision, createdAt: row.created_at, updatedAt: row.updated_at }) : null
   const sessionToDb = value => ({ room_id: value.roomId, token_hash: value.tokenHash, expires_at: value.expiresAt })
   return {
-    async listAllRooms(offset) { return (await request('rpc/room_api_list_all', 'POST', { p_offset: offset })).map(row => ({ ...roomFromDb(row), latestSettlementDate: row.latest_settlement_date, lastActivityAt: row.last_activity_at })) },
-    async renameRoom(roomId, hash, name) { await request('rpc/room_api_rename', 'POST', { p_room_id: roomId, p_token_hash: hash, p_name: name }) },
+    async listAllRooms(offset) { return (await request('rpc/room_api_list_all', 'POST', { p_offset: offset })).map(row => ({ roomId: row.room_id, roomName: row.room_name, icon: row.icon, createdAt: row.created_at, latestSettlementDate: row.latest_settlement_date })) },
+    async renameRoom(roomId, hash, name, icon) { await request('rpc/room_api_update_metadata', 'POST', { p_room_id: roomId, p_token_hash: hash, p_name: name, p_icon: icon ?? null }) },
     async listRooms(codes) { return (await request('rpc/room_api_list_known', 'POST', { p_codes: codes })).map(row => ({ ...roomFromDb(row), latestSettlementDate: row.latest_settlement_date })) },
     async deleteRoom(roomId, hash) { await request('rpc/room_api_delete', 'POST', { p_room_id: roomId, p_token_hash: hash }) },
     async findRoom(code) { return roomFromDb((await request(`settlement_rooms?room_code=eq.${encodeURIComponent(code)}&limit=1`))[0]) },

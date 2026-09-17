@@ -35,12 +35,12 @@ export function createLocalRoomDatabase(storage) {
         return { ...room, latestSettlementDate: records[0]?.data.date ?? null, lastActivityAt: records[0]?.updatedAt ?? room.createdAt }
       }).sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt) || a.roomId.localeCompare(b.roomId)).slice(offset, offset + 31)
     },
-    async renameRoom(roomId, hash, name) {
+    async renameRoom(roomId, hash, name, icon) {
       const session = sessions.get(hash)
       if (!session || session.roomId !== roomId || Date.parse(session.expiresAt) <= Date.now()) throw new Error('관리자 비밀번호를 다시 확인해주세요.')
       const data = read()
       if (!data.rooms.some(room => room.roomId === roomId)) throw new Error('정산방을 찾을 수 없습니다.')
-      write({ ...data, rooms: data.rooms.map(room => room.roomId === roomId ? { ...room, roomName: name } : room) })
+      write({ ...data, rooms: data.rooms.map(room => room.roomId === roomId ? { ...room, roomName: name, ...(icon === undefined ? {} : { icon }) } : room) })
     },
     async listRooms(codes) {
       const data = read()

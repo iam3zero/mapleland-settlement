@@ -21,7 +21,8 @@ export function RoomDirectory({ service, mode, currentRoom, revision }) {
     const codes = [...new Set([...(currentRoom ? [currentRoom.roomCode] : []), ...registry.read()])].slice(0, 30)
     const load = () => service.listRooms(codes).then(values => {
       if (!active) return
-      setRooms(sortRooms(values)); setLoading(false)
+      // A public directory response must never populate personal shortcuts.
+      setRooms(sortRooms(values.filter(room => codes.includes(room.roomCode)))); setLoading(false)
       setError(remembered ? '' : '방문한 방 목록을 이 브라우저에 기억할 수 없습니다. 방 코드나 공유 링크를 보관해주세요.')
       for (const code of codes) if (!values.some(room => room.roomCode === code)) registry.forget(code)
     }).catch(reason => { if (active) { setError(reason.message); setLoading(false) } })

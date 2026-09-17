@@ -1,7 +1,7 @@
 import { protectPassword, verifyPassword } from '../settlement/auth.js'
 import { migrateSettlement, serializable, validateForSave } from '../settlement/model.js'
 import { createToken, normalizeRoomCode, publicRoom, roomCode, sortRooms, tokenHash } from './domain.js'
-import { ROOM_ICONS } from './icons.js'
+import { ROOM_ICONS, roomIcon } from './icons.js'
 
 // Shared application service. The cloud server supplies a DB adapter; local mode supplies localStorage.
 // All cloud mutations execute this code on the server, never trusting client-provided results.
@@ -20,6 +20,13 @@ export function createRoomService(database, { generateCode = roomCode, now = () 
     const session = await database.getSession(await tokenHash(token))
     if (!session || session.roomId !== room.roomId || Date.parse(session.expiresAt) <= now().getTime()) throw new Error('관리자 비밀번호를 다시 확인해주세요.')
   }
+  const readRoom = async (code, expectedId) => {
+    const room = await get(code)
+    if (expectedId && room.roomId !== expectedId) throw new Error('해당 정산방의 코드가 일치하지 않습니다.')
+    const settlements = await database.listSettlements(room.roomId)
+    settlements.sort((a, b) => b.data.date.localeCompare(a.data.date) || b.updatedAt.localeCompare(a.updatedAt))
+    return { room: publicRoom(room), settlements }
+  }
   return {
     async createRoom({ roomName, password, icon = '🍁' }) {
       const name = String(roomName ?? '').trim()
@@ -37,11 +44,10 @@ export function createRoomService(database, { generateCode = roomCode, now = () 
       }
       throw new Error('새 방 코드를 생성하지 못했습니다. 다시 시도해주세요.')
     },
-    async getRoom(code) {
-      const room = await get(code)
-      const settlements = await database.listSettlements(room.roomId)
-      settlements.sort((a, b) => b.data.date.localeCompare(a.data.date) || b.updatedAt.localeCompare(a.updatedAt))
-      return { room: publicRoom(room), settlements }
+    getRoom: readRoom,
+    async enterRoom(roomId, code) {
+      if (typeof roomId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(roomId)) throw new Error('입장할 정산방을 선택해주세요.')
+      return readRoom(code, roomId)
     },
     async listRooms(codes) {
       if (!Array.isArray(codes) || codes.length > 30) throw new Error('최근 정산방은 최대 30개까지 조회할 수 있습니다.')
@@ -51,16 +57,18 @@ export function createRoomService(database, { generateCode = roomCode, now = () 
     async listAllRooms(offset = 0) {
       if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) throw new Error('정산방 목록 페이지를 확인해주세요.')
       const rows = await database.listAllRooms(offset)
-      return { rooms: rows.slice(0, 30).map(room => ({ ...publicRoom(room), latestSettlementDate: room.latestSettlementDate ?? null, lastActivityAt: room.lastActivityAt ?? room.createdAt })), hasMore: rows.length > 30 }
+      // Never reuse publicRoom here: it includes the access code for code-authenticated reads.
+      return { rooms: rows.slice(0, 30).map(room => ({ roomId: room.roomId, roomName: room.roomName, icon: roomIcon(room.icon), createdAt: room.createdAt, latestSettlementDate: room.latestSettlementDate ?? null })), hasMore: rows.length > 30 }
     },
-    async renameRoom(code, token, password, roomName) {
+    async renameRoom(code, token, password, roomName, icon) {
       const name = typeof roomName === 'string' ? roomName.trim() : ''
       if (!name || name.length > 60) throw new Error('방 이름을 1~60자로 입력해주세요.')
+      if (icon !== undefined && !ROOM_ICONS.includes(icon)) throw new Error('목록에서 정산방 아이콘을 선택해주세요.')
       const room = await get(code)
       await requireAdmin(room, token)
       if (!await verifyPassword(password, room.adminPasswordHash)) throw new Error('비밀번호가 일치하지 않습니다.')
-      await database.renameRoom(room.roomId, await tokenHash(token), name)
-      return publicRoom({ ...room, roomName: name })
+      await database.renameRoom(room.roomId, await tokenHash(token), name, icon)
+      return publicRoom({ ...room, roomName: name, ...(icon === undefined ? {} : { icon }) })
     },
     async deleteRoom(code, token, password) {
       const room = await get(code)

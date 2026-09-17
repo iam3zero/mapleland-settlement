@@ -71,6 +71,7 @@ export default function Rooms({ route, configuration }) {
   const [deleting, setDeleting] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newIcon, setNewIcon] = useState('🍁')
   const parts = route.split('/').filter(Boolean)
   const code = parts[0] === 'room' ? parts[1]?.toUpperCase() : null
   const service = config.service
@@ -98,10 +99,10 @@ export default function Rooms({ route, configuration }) {
       {unknown ? <div className="service-title"><h1 tabIndex={-1}>정산 기록을 찾을 수 없습니다.</h1></div> : (isNew || isEdit) && authorized ? <RoomEditor key={`${code}-${record?.settlementId ?? 'new-' + parts[3] + '-' + parts[4]}`} code={code} record={isEdit ? record : null} mode={`${parts[3]}/${parts[4]}`} service={service} access={access} bundle={bundle} onUnlock={() => askUnlock(route)} onSaved={saved => { const settlements = bundle.settlements.some(value => value.settlementId === saved.settlementId) ? bundle.settlements.map(value => value.settlementId === saved.settlementId ? saved : value) : [saved, ...bundle.settlements]; settlements.sort((a, b) => b.data.date.localeCompare(a.data.date) || b.updatedAt.localeCompare(a.updatedAt)); setLoaded({ code, bundle: { room: { ...bundle.room, updatedAt: saved.updatedAt }, settlements } }); window.location.hash = `${base}/settlement/${saved.settlementId}` }} /> : (isNew || isEdit) ? <div className="service-title"><h1 tabIndex={-1}>관리자 확인이 필요합니다.</h1><p>정산 작성·수정은 방의 수정 비밀번호를 확인한 뒤 이용할 수 있습니다.</p><button className="button button-primary" onClick={() => askUnlock(route)}>관리자 비밀번호 확인</button></div> : record ? <>
         <div className="service-title"><p className="section-kicker">{bundle.room.roomName}</p><h1 tabIndex={-1}>정산 기록 상세</h1><p>{record.data.date} · {modeLabel(record.data.mode)}</p></div><div className="saved-record-bar"><span>공유 정산 · 읽기 전용</span><button className="button button-secondary" onClick={() => askUnlock(`${base}/settlement/${record.settlementId}/edit`)}>수정하기</button></div><SettlementEditor data={record.data} savedResult={restoreResult(record.result)} readOnly />
       </> : <>
-        <div className="service-title"><p className="section-kicker">SETTLEMENT ROOM</p><h1 tabIndex={-1}>{bundle.room.roomName}</h1><p>공대의 정산을 한곳에 모아 확인하세요.</p></div>
+        <div className="service-title"><p className="section-kicker">SETTLEMENT ROOM</p><h1 tabIndex={-1}><span className="room-current-icon" aria-label="정산방 아이콘">{roomIcon(bundle.room.icon)}</span> {bundle.room.roomName}</h1><p>공대의 정산을 한곳에 모아 확인하세요.</p></div>
         <section className="room-share-card"><div><span>방 코드</span><strong>{bundle.room.roomCode}</strong></div><div className="room-share-link"><label>공유 링크<input className="text-input" readOnly value={roomLink(code)} onFocus={event => event.target.select()} /></label><button className="button button-secondary" onClick={async () => { try { await navigator.clipboard.writeText(roomLink(code)); setCopyNotice(config.mode === 'local' ? '링크를 복사했습니다. 현재는 같은 브라우저에서만 열립니다.' : '공유 링크를 복사했습니다.') } catch { setCopyNotice('자동 복사가 지원되지 않습니다. 링크를 선택해 직접 복사해주세요.') } }}>링크 복사</button></div></section>
         {copyNotice && <p className="success-message" role="status">{copyNotice}</p>}
-        <button type="button" className="text-button" onClick={() => { setNewName(bundle.room.roomName); setRenaming(true) }}>정산방 이름 수정</button>
+        <button type="button" className="text-button" onClick={() => { setNewName(bundle.room.roomName); setNewIcon(roomIcon(bundle.room.icon)); setRenaming(true) }}>정산방 이름 수정</button>
         <details className="room-new-options"><summary>+ 새 정산 작성</summary><div>{MODES.map(mode => <button className="button button-secondary" key={mode} onClick={() => moveToEditor(`${base}/new/${mode}`)}>{modeLabel(mode)}</button>)}</div></details>
         {authorized && <div className="room-admin-state"><span>관리자 확인됨 · 15분 유효</span><button className="text-button" onClick={async () => { try { await service.revoke(access.token); setAccess(null) } catch { setCopyNotice('관리자 권한 종료에 실패했습니다. 다시 시도해주세요.') } }}>관리자 권한 종료</button></div>}
         <div className="section-heading"><h2>지난 정산</h2><span className="count-badge">{bundle.settlements.length}개</span></div><div className="history-list">{bundle.settlements.map(value => <a key={value.settlementId} className="history-card" href={`#${base}/settlement/${value.settlementId}`}><div><time>{value.data.date}</time><h2>{modeLabel(value.data.mode)}</h2><p>공대원 {value.data.members.length}명</p></div><div className="history-amount"><span>최종 정산금</span><strong><Money value={BigInt(value.result.total.final)} /></strong></div></a>)}</div>
@@ -112,13 +113,13 @@ export default function Rooms({ route, configuration }) {
     </>}
     <RoomDirectory service={service} mode={config.mode} currentRoom={bundle?.room} revision={bundle?.settlements} />
     <AllRooms service={service} mode={config.mode} revision={bundle} />
-    {renaming && bundle && <PasswordDialog title="정산방 이름 수정" description="새 이름과 관리자 비밀번호를 입력해주세요." submitLabel="변경하기" cloud={config.mode === 'supabase'} onCancel={() => setRenaming(false)} onSubmit={async password => {
+    {renaming && bundle && <PasswordDialog title="정산방 이름 수정" description="이름·아이콘을 수정하고 관리자 비밀번호를 입력해주세요." submitLabel="변경하기" cloud={config.mode === 'supabase'} onCancel={() => setRenaming(false)} onSubmit={async password => {
       if (!newName.trim() || newName.trim().length > 60) throw new Error('방 이름을 1~60자로 입력해주세요.')
       const next = await service.unlock(code, password)
-      const room = await service.renameRoom(code, next.token, password, newName)
+      const room = await service.renameRoom(code, next.token, password, newName, newIcon)
       setAccess({ code, ...next }); setLoaded({ code, bundle: { ...bundle, room } }); setRenaming(false)
-      notifySaved('정산방 이름이 변경되었습니다.')
-    }}><label>새 정산방 이름<input className="text-input" value={newName} maxLength={60} required onChange={event => setNewName(event.target.value)} /></label></PasswordDialog>}
+      notifySaved('정산방 정보가 변경되었습니다.')
+    }}><label>새 정산방 이름<input className="text-input" value={newName} maxLength={60} required onChange={event => setNewName(event.target.value)} /></label><IconPicker value={newIcon} onChange={setNewIcon} /></PasswordDialog>}
     {deleting && bundle && <PasswordDialog title="정산방을 삭제하시겠습니까?" description="삭제하면 해당 정산방과 저장된 모든 정산 기록을 다시 복구할 수 없습니다. 계속하려면 관리자 비밀번호를 입력해주세요." submitLabel="삭제" cloud={config.mode === 'supabase'} onCancel={() => setDeleting(false)} onSubmit={async password => {
       await service.deleteRoom(code, access?.token, password)
       try { visitedRooms(window.localStorage, config.mode).forget(code) } catch { /* Deleted codes are also removed when refreshing the directory. */ }
